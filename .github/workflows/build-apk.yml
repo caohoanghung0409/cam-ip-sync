@@ -23,28 +23,27 @@ jobs:
           channel: 'stable'
           flutter-version: '3.24.3'
 
-      - name: Set up Python & Fonts
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.x'
 
-      - name: Initialize and Generate NOI DAY Icon
+      - name: Initialize App & Generate NOI DAY Icon
         run: |
-          sudo apt-get update && sudo apt-get install -y fonts-dejavu-core
           pip install pillow
 
+          # 1. Khởi tạo project Flutter sạch
           flutter create noiday --org com.noiday --platforms android
           cd noiday
           flutter pub add http
 
+          # 2. Đặt tên ứng dụng thành NỔI DẬY và cấp quyền INTERNET
           sed -i 's/android:label=".*"/android:label="NỔI DẬY"/' android/app/src/main/AndroidManifest.xml
           sed -i 's/<application/<uses-permission android:name="android.intent.permission.INTERNET"\/>\n    <application/' android/app/src/main/AndroidManifest.xml
 
-          cp ../lib/main.dart lib/main.dart
-
-          # Tạo icon chữ NỔI DẬY chất lượng cao
+          # 3. Tạo icon logo NỔI DẬY (nền đỏ, viền vàng kim, khối huy hiệu N-D nổi bật)
           python3 -c "
-          from PIL import Image, ImageDraw, ImageFont
+          from PIL import Image, ImageDraw
           import os
 
           sizes = {
@@ -55,44 +54,45 @@ jobs:
               'mipmap-xxxhdpi': 192
           }
 
-          font_path = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'
-
           for folder, sz in sizes.items():
               target_dir = os.path.join('android/app/src/main/res', folder)
               os.makedirs(target_dir, exist_ok=True)
               img = Image.new('RGBA', (sz, sz), color=(0, 0, 0, 0))
               draw = ImageDraw.Draw(img)
 
+              # Bo góc nền đỏ đậm NỔI DẬY
               corner = int(sz * 0.22)
-              # Nền đỏ đậm sang trọng
               draw.rounded_rectangle([(0, 0), (sz - 1, sz - 1)], radius=corner, fill=(198, 40, 40, 255))
               # Viền vàng kim
-              draw.rounded_rectangle([(1, 1), (sz - 2, sz - 2)], radius=corner, outline=(255, 215, 0, 230), width=max(1, int(sz*0.03)))
+              draw.rounded_rectangle([(1, 1), (sz - 2, sz - 2)], radius=corner, outline=(255, 215, 0, 240), width=max(1, int(sz * 0.03)))
 
-              f_sz = max(8, int(sz * 0.23))
-              try:
-                  font = ImageFont.truetype(font_path, f_sz)
-              except Exception:
-                  font = ImageFont.load_default()
+              # Vẽ biểu tượng tia sét / ngôi sao cách điệu NỔI DẬY màu vàng kim
+              cx, cy = sz / 2, sz / 2
+              scale = sz / 100.0
+              lightning = [
+                  (cx + 8 * scale, cy - 35 * scale),
+                  (cx - 20 * scale, cy + 2 * scale),
+                  (cx - 2 * scale, cy + 2 * scale),
+                  (cx - 10 * scale, cy + 35 * scale),
+                  (cx + 20 * scale, cy - 4 * scale),
+                  (cx + 2 * scale, cy - 4 * scale)
+              ]
+              draw.polygon(lightning, fill=(255, 235, 59, 255))
 
-              t1, t2 = 'NOI', 'DAY'
-              b1 = draw.textbbox((0, 0), t1, font=font)
-              b2 = draw.textbbox((0, 0), t2, font=font)
-
-              w1, h1 = b1[2] - b1[0], b1[3] - b1[1]
-              w2, h2 = b2[2] - b2[0], b2[3] - b2[1]
-
-              spacing = int(sz * 0.05)
-              total_h = h1 + h2 + spacing
-              y_start = (sz - total_h) / 2 - int(sz * 0.03)
-
-              draw.text(((sz - w1) / 2, y_start), t1, fill=(255, 235, 59, 255), font=font)
-              draw.text(((sz - w2) / 2, y_start + h1 + spacing), t2, fill=(255, 255, 255, 255), font=font)
+              # Khung nhãn chữ ND (Nổi Dậy) ở chân icon
+              tag_h = int(sz * 0.22)
+              tag_y = int(sz * 0.72)
+              draw.rectangle([(int(sz * 0.15), tag_y), (int(sz * 0.85), tag_y + tag_h)], fill=(0, 0, 0, 160))
+              draw.text((int(sz * 0.28), tag_y + int(sz * 0.02)), 'NOI DAY', fill=(255, 255, 255, 255))
 
               img.save(os.path.join(target_dir, 'ic_launcher.png'))
-          print('Successfully generated NOI DAY icons!')
+          print('Generated NOI DAY logo icon successfully!')
           "
 
+          # 4. Chép file main.dart vào project
+          cp ../lib/main.dart lib/main.dart
+
+          # 5. Build APK
           flutter build apk --release --no-tree-shake-icons
 
       - name: Upload Artifact
