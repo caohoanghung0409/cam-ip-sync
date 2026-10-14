@@ -23,24 +23,66 @@ jobs:
           channel: 'stable'
           flutter-version: '3.24.3'
 
-      - name: Initialize and Build App
+      - name: Set up Python for Icon generation
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Initialize and Generate MESA Icon
         run: |
-          # 1. Tạo project chuẩn
+          pip install pillow
+
           flutter create noiday --org com.noiday --platforms android
-
           cd noiday
-
-          # 2. Tự động thêm thư viện http trực tiếp bằng lệnh Flutter chuẩn
           flutter pub add http
 
-          # 3. Đổi tên ứng dụng thành NỔI DẬY và cấp quyền INTERNET
           sed -i 's/android:label=".*"/android:label="NỔI DẬY"/' android/app/src/main/AndroidManifest.xml
           sed -i 's/<application/<uses-permission android:name="android.intent.permission.INTERNET"\/>\n    <application/' android/app/src/main/AndroidManifest.xml
 
-          # 4. Ghi đè code lib/main.dart từ repo
           cp ../lib/main.dart lib/main.dart
 
-          # 5. Build file APK
+          # Tạo icon MESA chuyên nghiệp cho tất cả kích thước Android
+          python3 -c "
+          from PIL import Image, ImageDraw, ImageFont
+          import os
+
+          sizes = {
+              'mipmap-mdpi': 48,
+              'mipmap-hdpi': 72,
+              'mipmap-xhdpi': 96,
+              'mipmap-xxhdpi': 144,
+              'mipmap-xxxhdpi': 192
+          }
+
+          for folder, sz in sizes.items():
+              target_dir = os.path.join('android/app/src/main/res', folder)
+              os.makedirs(target_dir, exist_ok=True)
+              img = Image.new('RGBA', (sz, sz), color=(0, 0, 0, 0))
+              draw = ImageDraw.Draw(img)
+
+              # Vẽ nền bo góc màu đỏ MESA
+              corner = int(sz * 0.22)
+              draw.rounded_rectangle([(0, 0), (sz - 1, sz - 1)], radius=corner, fill=(211, 47, 47, 255))
+
+              # Vẽ viền vàng mỏng
+              draw.rounded_rectangle([(1, 1), (sz - 2, sz - 2)], radius=corner, outline=(255, 215, 0, 200), width=max(1, int(sz*0.02)))
+
+              # Vẽ chữ MESA nổi bật ở giữa
+              # Dùng font mặc định có sẵn
+              try:
+                  font = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', int(sz * 0.26))
+              except:
+                  font = ImageFont.load_default()
+
+              bbox = draw.textbbox((0, 0), 'MESA', font=font)
+              w = bbox[2] - bbox[0]
+              h = bbox[3] - bbox[1]
+              draw.text(((sz - w) / 2, (sz - h) / 2 - int(sz * 0.04)), 'MESA', fill=(255, 255, 255, 255), font=font)
+
+              img.save(os.path.join(target_dir, 'ic_launcher.png'))
+          print('Generated MESA icons successfully!')
+          "
+
           flutter build apk --release --no-tree-shake-icons
 
       - name: Upload Artifact
