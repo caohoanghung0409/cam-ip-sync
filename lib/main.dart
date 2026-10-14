@@ -32,14 +32,13 @@ class DutyShift {
   });
 }
 
-// ================= THUẬT TOÁN ÂM LỊCH VIỆT NAM (HỒ NGỌC ĐỨC) =================
+// ================= THUẬT TOÁN ÂM LỊCH VIỆT NAM =================
 class LunarDate {
   final int day;
   final int month;
   final int year;
-  final bool isLeap;
 
-  LunarDate(this.day, this.month, this.year, [this.isLeap = false]);
+  LunarDate(this.day, this.month, this.year);
 
   static const double pi = 3.14159265358979323846;
 
@@ -168,7 +167,18 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
   static final DateTime baseSaturday = DateTime(2026, 10, 17);
 
   DateTime _currentDate = DateTime.now();
-  bool _isLoadingTime = false;
+  bool _isLoading = false;
+
+  // Danh sách ngày lễ Dương Lịch mặc định (tích hợp sẵn 24/11)
+  static final Map<String, String> holidaysMap = {
+    "1-1": "Tết Dương Lịch",
+    "30-4": "Giải Phóng Miền Nam",
+    "1-5": "Quốc Tế Lao Động",
+    "1-9": "Nghỉ Lễ Quốc Khánh",
+    "2-9": "Quốc Khánh 2/9",
+    "3-9": "Nghỉ Lễ Quốc Khánh",
+    "24-11": "Ngày Lễ 24/11",
+  };
 
   @override
   void initState() {
@@ -177,55 +187,39 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
   }
 
   Future<void> _fetchInternetTime() async {
-    setState(() => _isLoadingTime = true);
+    setState(() => _isLoading = true);
     try {
       final res = await http
           .get(Uri.parse('https://worldtimeapi.org/api/timezone/Asia/Ho_Chi_Minh'))
           .timeout(const Duration(seconds: 2));
-
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        final internetDateStr = data['datetime'];
-        final parsedDate = DateTime.parse(internetDateStr);
-
-        if (mounted) {
-          setState(() {
-            _currentDate = parsedDate;
-            _isLoadingTime = false;
-          });
-        }
-        return;
+        _currentDate = DateTime.parse(data['datetime']);
       }
-    } catch (_) {}
+    } catch (_) {
+      _currentDate = DateTime.now();
+    }
 
     if (mounted) {
-      setState(() {
-        _currentDate = DateTime.now();
-        _isLoadingTime = false;
-      });
+      setState(() => _isLoading = false);
     }
   }
 
-  // TÍNH CẢ LỄ DƯƠNG LỊCH & ÂM LỊCH CHUẨN XÁC
+  // Nhận diện ngày lễ: Dương lịch + 24/11 + Âm lịch
   static String? checkHoliday(DateTime date) {
-    // 1. Lễ Dương Lịch
-    if (date.month == 1 && date.day == 1) return "Tết Dương Lịch";
-    if (date.month == 4 && date.day == 30) return "Giải Phóng Miền Nam";
-    if (date.month == 5 && date.day == 1) return "Quốc Tế Lao Động";
-    if (date.month == 9 && (date.day >= 1 && date.day <= 3)) return "Quốc Khánh 2/9";
+    String key = "${date.day}-${date.month}";
+    if (holidaysMap.containsKey(key)) {
+      return holidaysMap[key];
+    }
 
-    // 2. Lễ Âm Lịch (Quy đổi thiên văn Việt Nam)
+    // Âm lịch
     LunarDate lunar = LunarDate.fromSolar(date.day, date.month, date.year);
-
-    // Tết Nguyên Đán (từ 29, 30 Tết đến hết Mùng 5 Tết)
     if (lunar.month == 12 && (lunar.day == 29 || lunar.day == 30)) {
       return "Nghỉ Tết Nguyên Đán (Tất Niên)";
     }
     if (lunar.month == 1 && (lunar.day >= 1 && lunar.day <= 5)) {
       return "Tết Nguyên Đán (Mùng ${lunar.day})";
     }
-
-    // Giỗ Tổ Hùng Vương (10/3 Âm lịch)
     if (lunar.month == 3 && lunar.day == 10) {
       return "Giỗ Tổ Hùng Vương (10/3 ÂL)";
     }
@@ -297,7 +291,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
         actions: [
           IconButton(
             tooltip: "Làm mới",
-            icon: _isLoadingTime
+            icon: _isLoading
                 ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                 : const Icon(Icons.refresh, color: Colors.white),
             onPressed: _fetchInternetTime,
@@ -366,7 +360,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
               ),
             ),
 
-            // Thứ tự xoay tua: Người trực tuần này nằm đầu tiên
+            // Danh sách xoay tua: Người trực tuần này nằm đầu tiên
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
