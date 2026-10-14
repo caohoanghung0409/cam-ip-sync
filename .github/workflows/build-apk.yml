@@ -28,23 +28,20 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: Initialize App & Setup TSMH Icon Cleanly
+      - name: Initialize App & Setup Clear S TSMH Icon
         run: |
           pip install pillow
 
-          # 1. Khởi tạo project Flutter
           flutter create noiday --org com.noiday --platforms android
           cd noiday
 
-          # 2. Thêm thư viện cần thiết
           flutter pub add http
           flutter pub add --dev flutter_launcher_icons
 
-          # 3. Đổi tên ứng dụng thành NỔI DẬY và cấp quyền mạng
           sed -i 's/android:label=".*"/android:label="NỔI DẬY"/' android/app/src/main/AndroidManifest.xml
           sed -i 's/<application/<uses-permission android:name="android.intent.permission.INTERNET"\/>\n    <application/' android/app/src/main/AndroidManifest.xml
 
-          # 4. Tạo ảnh nguồn icon TSMH chất lượng cao 512x512 (Đỏ Ruby & Vàng Gold)
+          # Tạo ảnh icon TSMH sắc nét với chữ S chuẩn hình dáng
           python3 -c "
           from PIL import Image, ImageDraw
           import os
@@ -53,47 +50,53 @@ jobs:
           img = Image.new('RGBA', (sz, sz), color=(0, 0, 0, 0))
           draw = ImageDraw.Draw(img)
 
-          # Nền bo góc Đỏ Ruby
+          # Nền bo góc đỏ Ruby
           corner = 110
           draw.rounded_rectangle([(0, 0), (sz - 1, sz - 1)], radius=corner, fill=(139, 0, 0, 255))
 
-          # Khung viền kim cương đôi mạ vàng Gold 24K
+          # Viền kim cương đôi vàng Gold 24K
           draw.polygon([(256, 40), (472, 256), (256, 472), (40, 256)], outline=(255, 215, 0, 255), width=8)
-          draw.polygon([(256, 56), (456, 256), (256, 456), (56, 256)], outline=(255, 248, 220, 200), width=4)
+          draw.polygon([(256, 58), (454, 256), (256, 454), (58, 256)], outline=(255, 248, 220, 200), width=4)
 
-          # 4 đỉnh ngọc vàng
+          # 4 đỉnh ngọc
           for pt in [(256, 24), (256, 488), (24, 256), (488, 256)]:
               draw.ellipse([(pt[0]-10, pt[1]-10), (pt[0]+10, pt[1]+10)], fill=(255, 215, 0, 255))
 
-          # Chữ T (Góc trên - trái)
-          draw.line([(150, 150), (220, 150)], fill=(255, 215, 0, 255), width=14)
-          draw.line([(185, 150), (185, 220)], fill=(255, 215, 0, 255), width=14)
+          # Trục phân tách chữ thập
+          draw.line([(256, 160), (256, 352)], fill=(255, 215, 0, 140), width=4)
+          draw.line([(160, 256), (352, 256)], fill=(255, 215, 0, 140), width=4)
 
-          # Chữ S (Góc trên - phải)
-          draw.arc([(300, 140), (360, 185)], start=160, end=380, fill=(255, 255, 255, 255), width=14)
-          draw.arc([(300, 175), (360, 225)], start=-20, end=200, fill=(255, 255, 255, 255), width=14)
+          # Chữ T (Vàng Gold)
+          draw.line([(145, 150), (225, 150)], fill=(255, 215, 0, 255), width=15)
+          draw.line([(185, 150), (185, 225)], fill=(255, 215, 0, 255), width=15)
 
-          # Chữ M (Góc dưới - trái)
-          draw.line([(150, 360), (150, 290)], fill=(255, 255, 255, 255), width=14)
-          draw.line([(150, 290), (185, 335)], fill=(255, 255, 255, 255), width=14)
-          draw.line([(185, 335), (220, 290)], fill=(255, 255, 255, 255), width=14)
-          draw.line([(220, 290), (220, 360)], fill=(255, 255, 255, 255), width=14)
+          # Chữ S (Trắng Silver) - Vẽ 5 điểm uốn lượn rõ ràng chữ S
+          s_points = [
+              (360, 152), (320, 145), (298, 162),
+              (300, 185), (330, 198), (362, 212),
+              (365, 235), (335, 252), (295, 245)
+          ]
+          for i in range(len(s_points) - 1):
+              draw.line([s_points[i], s_points[i+1]], fill=(255, 255, 255, 255), width=15)
+          for pt in s_points:
+              draw.ellipse([(pt[0]-7, pt[1]-7), (pt[0]+7, pt[1]+7)], fill=(255, 255, 255, 255))
 
-          # Chữ H (Góc dưới - phải)
-          draw.line([(300, 290), (300, 360)], fill=(255, 215, 0, 255), width=14)
-          draw.line([(360, 290), (360, 360)], fill=(255, 215, 0, 255), width=14)
-          draw.line([(300, 325), (360, 325)], fill=(255, 215, 0, 255), width=14)
+          # Chữ M (Trắng Silver)
+          draw.line([(145, 362), (145, 290)], fill=(255, 255, 255, 255), width=15)
+          draw.line([(145, 290), (185, 335)], fill=(255, 255, 255, 255), width=15)
+          draw.line([(185, 335), (225, 290)], fill=(255, 255, 255, 255), width=15)
+          draw.line([(225, 290), (225, 362)], fill=(255, 255, 255, 255), width=15)
 
-          # Đường chỉ chia chữ thập vàng
-          draw.line([(256, 170), (256, 342)], fill=(255, 215, 0, 140), width=4)
-          draw.line([(170, 256), (342, 256)], fill=(255, 215, 0, 140), width=4)
+          # Chữ H (Vàng Gold)
+          draw.line([(295, 290), (295, 362)], fill=(255, 215, 0, 255), width=15)
+          draw.line([(365, 290), (365, 362)], fill=(255, 215, 0, 255), width=15)
+          draw.line([(295, 326), (365, 326)], fill=(255, 215, 0, 255), width=15)
 
           os.makedirs('assets', exist_ok=True)
           img.save('assets/icon.png')
-          print('Created TSMH PNG icon successfully!')
+          print('Created sharp TSMH icon successfully!')
           "
 
-          # 5. Cấu hình flutter_launcher_icons để tự động sinh icon tương thích hoàn toàn
           cat << 'EOF' >> pubspec.yaml
 
           flutter_launcher_icons:
@@ -104,10 +107,8 @@ jobs:
 
           flutter pub run flutter_launcher_icons
 
-          # 6. Chép file main.dart từ repo
           cp ../lib/main.dart lib/main.dart
 
-          # 7. Build file APK chuẩn
           flutter build apk --release --no-tree-shake-icons
 
       - name: Upload Artifact
