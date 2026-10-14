@@ -1,5 +1,5 @@
 name: cam_ip_sync
-description: "Camera IP Sync Tool"
+description: "App xem camera Hikvision, Dahua, Imou tu phan giai DNS"
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -9,7 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  http: ^1.2.0
+  media_kit: ^1.1.10
+  media_kit_video: ^1.2.4
 
 flutter:
   uses-material-design: true
