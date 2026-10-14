@@ -23,26 +23,107 @@ jobs:
           channel: 'stable'
           flutter-version: '3.24.3'
 
-      - name: Initialize and Build App
+      - name: Initialize App & Setup TSMH Luxury Icon
         run: |
-          # 1. Tạo project chuẩn
+          # 1. Khởi tạo project Flutter chuẩn
           flutter create noiday --org com.noiday --platforms android
           cd noiday
-
-          # 2. Thêm thư viện cần thiết
           flutter pub add http
 
-          # 3. Đặt tên hiển thị app là NỔI DẬY và cấp quyền INTERNET
+          # 2. Đặt tên hiển thị app là NỔI DẬY và cấp quyền INTERNET
           sed -i 's/android:label=".*"/android:label="NỔI DẬY"/' android/app/src/main/AndroidManifest.xml
           sed -i 's/<application/<uses-permission android:name="android.intent.permission.INTERNET"\/>\n    <application/' android/app/src/main/AndroidManifest.xml
 
-          # 4. Sao chép file main.dart vào project
+          # 3. Tạo nền đỏ Ruby sang trọng cho Adaptive Icon
+          cat << 'EOF' > android/app/src/main/res/values/ic_launcher_background.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <color name="ic_launcher_background">#8B0000</color>
+          </resources>
+          EOF
+
+          # 4. Tạo đồ họa Vector TSMH mạ vàng kim hoàng gia (Gold 24K)
+          cat << 'EOF' > android/app/src/main/res/drawable/ic_launcher_foreground.xml
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="108dp"
+              android:height="108dp"
+              android:viewportWidth="108"
+              android:viewportHeight="108">
+              
+              <!-- Khung viền kim cương đôi góc bo sang trọng -->
+              <path
+                  android:fillColor="#00000000"
+                  android:strokeColor="#FFD700"
+                  android:strokeWidth="1.8"
+                  android:pathData="M54,23 L85,54 L54,85 L23,54 Z"/>
+              <path
+                  android:fillColor="#00000000"
+                  android:strokeColor="#FFF8DC"
+                  android:strokeWidth="0.8"
+                  android:pathData="M54,26 L82,54 L54,82 L26,54 Z"/>
+
+              <!-- 4 đỉnh ngọc hoàng gia -->
+              <path android:fillColor="#FFD700" android:pathData="M54,20 L56,23 L54,26 L52,23 Z"/>
+              <path android:fillColor="#FFD700" android:pathData="M54,82 L56,85 L54,88 L52,85 Z"/>
+              <path android:fillColor="#20,54 L23,56 L26,54 L23,52 Z" android:fillColor="#FFD700"/>
+              <path android:fillColor="#FFD700" android:pathData="M82,54 L85,56 L88,54 L85,52 Z"/>
+
+              <!-- Chữ T (Góc trên - trái) -->
+              <path
+                  android:fillColor="#00000000"
+                  android:strokeColor="#FFD700"
+                  android:strokeWidth="2.2"
+                  android:strokeCap="round"
+                  android:pathData="M32,39 L46,39 M39,39 L39,52"/>
+
+              <!-- Chữ S (Góc trên - phải) -->
+              <path
+                  android:fillColor="#00000000"
+                  android:strokeColor="#FFFFFF"
+                  android:strokeWidth="2.2"
+                  android:strokeCap="round"
+                  android:pathData="M76,40 C73,38 67,38 67,42 C67,46 76,45 76,49 C76,53 70,53 67,51"/>
+
+              <!-- Chữ M (Góc dưới - trái) -->
+              <path
+                  android:fillColor="#00000000"
+                  android:strokeColor="#FFFFFF"
+                  android:strokeWidth="2.2"
+                  android:strokeCap="round"
+                  android:strokeJoin="round"
+                  android:pathData="M33,69 L33,57 L38.5,64 L44,57 L44,69"/>
+
+              <!-- Chữ H (Góc dưới - phải) -->
+              <path
+                  android:fillColor="#00000000"
+                  android:strokeColor="#FFD700"
+                  android:strokeWidth="2.2"
+                  android:strokeCap="round"
+                  android:pathData="M66,57 L66,69 M77,57 L77,69 M66,63 L77,63"/>
+
+              <!-- Đường chỉ phân tách trung tâm cách điệu dấu thập mạ vàng -->
+              <path
+                  android:fillColor="#00000000"
+                  android:strokeColor="#FFD700"
+                  android:strokeWidth="0.8"
+                  android:pathData="M54,36 L54,72 M36,54 L72,54"/>
+          </vector>
+          EOF
+
+          # 5. Cấu hình Adaptive Icon TSMH chuẩn cho Android
+          mkdir -p android/app/src/main/res/mipmap-anydpi-v26
+          cat << 'EOF' > android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+              <background android:drawable="@color/ic_launcher_background"/>
+              <foreground android:drawable="@drawable/ic_launcher_foreground"/>
+          </adaptive-icon>
+          EOF
+
+          # 6. Sao chép mã nguồn main.dart vào project
           cp ../lib/main.dart lib/main.dart
 
-          # 5. Kiểm tra cú pháp trước khi build
-          flutter analyze || true
-
-          # 6. Build file APK phát hành
+          # 7. Biên dịch APK Release
           flutter build apk --release --no-tree-shake-icons
 
       - name: Upload Artifact
