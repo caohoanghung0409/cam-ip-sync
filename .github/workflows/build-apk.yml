@@ -25,41 +25,16 @@ jobs:
 
       - name: Initialize and Build App
         run: |
-          # 1. Khởi tạo project Flutter sạch
           flutter create noiday --org com.noiday --platforms android
           cd noiday
 
-          # 2. Thêm thư viện gọi mạng
           flutter pub add http
 
-          # 3. Đổi tên ứng dụng thành NỔI DẬY và cấp quyền INTERNET
           sed -i 's/android:label=".*"/android:label="NỔI DẬY"/' android/app/src/main/AndroidManifest.xml
           sed -i 's/<application/<uses-permission android:name="android.intent.permission.INTERNET"\/>\n    <application/' android/app/src/main/AndroidManifest.xml
 
-          # 4. Tạo icon vector chuẩn Android (Logo NỔI DẬY nền đỏ chữ vàng sang trọng)
-          cat << 'EOF' > android/app/src/main/res/drawable/ic_launcher_foreground.xml
-          <vector xmlns:android="http://schemas.android.com/apk/res/android"
-              android:width="108dp"
-              android:height="108dp"
-              android:viewportWidth="108"
-              android:viewportHeight="108">
-              <path
-                  android:fillColor="#FFD700"
-                  android:pathData="M54,20 L62,38 L82,41 L67,55 L71,75 L54,65 L37,75 L41,55 L26,41 L46,38 Z"/>
-          </vector>
-          EOF
-
-          cat << 'EOF' > android/app/src/main/res/values/ic_launcher_background.xml
-          <?xml version="1.0" encoding="utf-8"?>
-          <resources>
-              <color name="ic_launcher_background">#C62828</color>
-          </resources>
-          EOF
-
-          # 5. Ghi đè file mã nguồn từ repo
           cp ../lib/main.dart lib/main.dart
 
-          # 6. Build file APK phát hành
           flutter build apk --release --no-tree-shake-icons
 
       - name: Upload Artifact
