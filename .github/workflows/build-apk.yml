@@ -26,8 +26,6 @@ jobs:
       - name: Generate Android Skeleton & Set App Name
         run: |
           flutter create . --platforms=android --org com.noiday
-
-          # Đổi tên app thành NỔI DẬY hiển thị trên màn hình điện thoại
           sed -i 's/android:label=".*"/android:label="NỔI DẬY"/' android/app/src/main/AndroidManifest.xml
 
       - name: Install dependencies
