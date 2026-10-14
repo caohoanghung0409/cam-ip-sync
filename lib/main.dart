@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
@@ -32,15 +33,13 @@ class DutyShift {
   });
 }
 
-// ================= THUẬT TOÁN ÂM LỊCH VIỆT NAM =================
+// ================= THUẬT TOÁN ÂM LỊCH VIỆT NAM (CHUẨN DART) =================
 class LunarDate {
   final int day;
   final int month;
   final int year;
 
   LunarDate(this.day, this.month, this.year);
-
-  static const double pi = 3.14159265358979323846;
 
   static int _jdFromDate(int dd, int mm, int yy) {
     int a = ((14 - mm) / 12).floor();
@@ -57,56 +56,56 @@ class LunarDate {
     double t = k / 1236.85;
     double t2 = t * t;
     double t3 = t2 * t;
-    double dr = pi / 180;
+    double dr = pi / 180.0;
     double jde = 2415020.75933 + 29.53058868 * k + 0.0001178 * t2 - 0.000000155 * t3;
-    jde += 0.00033 * (166.56 + 132.87 * t - 0.009173 * t2) * dr;
+    jde += 0.00033 * sin((166.56 + 132.87 * t - 0.009173 * t2) * dr);
     double m = 359.2242 + 29.10535608 * k - 0.0000333 * t2 - 0.00000347 * t3;
     double mpr = 306.0253 + 385.81691806 * k + 0.0107306 * t2 + 0.00001236 * t3;
     double f = 21.2964 + 390.67050646 * k - 0.0016528 * t2 - 0.00000239 * t3;
-    double c1 = (0.1734 - 0.000393 * t) * (m * dr).sin() + 0.0021 * (2 * m * dr).sin();
-    c1 -= 0.4068 * (mpr * dr).sin() + 0.0161 * (2 * mpr * dr).sin();
-    c1 -= 0.0004 * (3 * mpr * dr).sin();
-    c1 += 0.0104 * (2 * f * dr).sin() - 0.0051 * ((m + mpr) * dr).sin();
-    c1 -= 0.0074 * ((m - mpr) * dr).sin() + 0.0004 * ((2 * f + m) * dr).sin();
-    c1 -= 0.0004 * ((2 * f - m) * dr).sin() - 0.0006 * ((2 * f + mpr) * dr).sin();
-    c1 += 0.0010 * ((2 * f - mpr) * dr).sin() + 0.0005 * ((2 * mpr + m) * dr).sin();
+    double c1 = (0.1734 - 0.000393 * t) * sin(m * dr) + 0.0021 * sin(2 * m * dr);
+    c1 -= 0.4068 * sin(mpr * dr) + 0.0161 * sin(2 * mpr * dr);
+    c1 -= 0.0004 * sin(3 * mpr * dr);
+    c1 += 0.0104 * sin(2 * f * dr) - 0.0051 * sin((m + mpr) * dr);
+    c1 -= 0.0074 * sin((m - mpr) * dr) + 0.0004 * sin((2 * f + m) * dr);
+    c1 -= 0.0004 * sin((2 * f - m) * dr) - 0.0006 * sin((2 * f + mpr) * dr);
+    c1 += 0.0010 * sin((2 * f - mpr) * dr) + 0.0005 * sin((2 * mpr + m) * dr);
     return jde + c1;
   }
 
   static double _sunLongitude(double jdn) {
-    double t = (jdn - 2451545.0) / 36525;
-    double dr = pi / 180;
+    double t = (jdn - 2451545.0) / 36525.0;
+    double dr = pi / 180.0;
     double l0 = 280.46645 + 36000.76983 * t + 0.0003032 * t * t;
     double m = 357.52910 + 35999.05030 * t - 0.0001559 * t * t - 0.00000048 * t * t * t;
-    double c = (1.914600 - 0.004817 * t - 0.000014 * t * t) * (m * dr).sin() +
-        (0.019993 - 0.000101 * t) * (2 * m * dr).sin() +
-        0.000290 * (3 * m * dr).sin();
+    double c = (1.914600 - 0.004817 * t - 0.000014 * t * t) * sin(m * dr) +
+        (0.019993 - 0.000101 * t) * sin(2 * m * dr) +
+        0.000290 * sin(3 * m * dr);
     double theta = l0 + c;
-    theta = theta - 360 * (theta / 360).floor();
+    theta = theta - 360.0 * (theta / 360.0).floor();
     return theta * dr;
   }
 
   static int _getSunLongitude(int dayNumber, double timeZone) {
-    return (_sunLongitude(dayNumber - 0.5 - timeZone / 24) / (pi / 6)).floor();
+    return (_sunLongitude(dayNumber - 0.5 - timeZone / 24.0) / (pi / 6.0)).floor();
   }
 
   static int _getLunarMonth11(int yy, double timeZone) {
     double off = _jdFromDate(31, 12, yy) - 2415021.076998695;
     int k = (off / 29.53058868).floor();
     double nm = _newMoon(k);
-    int sunLong = _getSunLongitude((nm + 0.5 + timeZone / 24).floor(), timeZone);
+    int sunLong = _getSunLongitude((nm + 0.5 + timeZone / 24.0).floor(), timeZone);
     if (sunLong >= 9) {
       nm = _newMoon(k - 1);
     }
-    return (nm + 0.5 + timeZone / 24).floor();
+    return (nm + 0.5 + timeZone / 24.0).floor();
   }
 
   static LunarDate fromSolar(int dd, int mm, int yy, [double timeZone = 7.0]) {
     int dayNumber = _jdFromDate(dd, mm, yy);
     int k = ((dayNumber - 2415021.076998695) / 29.53058868).floor();
-    int lastNm = (_newMoon(k) + 0.5 + timeZone / 24).floor();
+    int lastNm = (_newMoon(k) + 0.5 + timeZone / 24.0).floor();
     if (lastNm > dayNumber) {
-      lastNm = (_newMoon(k - 1) + 0.5 + timeZone / 24).floor();
+      lastNm = (_newMoon(k - 1) + 0.5 + timeZone / 24.0).floor();
     }
     int a11 = _getLunarMonth11(yy, timeZone);
     int b11 = a11;
@@ -169,7 +168,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
   DateTime _currentDate = DateTime.now();
   bool _isLoading = false;
 
-  // Danh sách ngày lễ Dương Lịch mặc định (tích hợp sẵn 24/11)
+  // Ngày lễ Dương lịch (đã bao gồm 24/11)
   static final Map<String, String> holidaysMap = {
     "1-1": "Tết Dương Lịch",
     "30-4": "Giải Phóng Miền Nam",
@@ -205,7 +204,6 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     }
   }
 
-  // Nhận diện ngày lễ: Dương lịch + 24/11 + Âm lịch
   static String? checkHoliday(DateTime date) {
     String key = "${date.day}-${date.month}";
     if (holidaysMap.containsKey(key)) {
@@ -360,7 +358,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
               ),
             ),
 
-            // Danh sách xoay tua: Người trực tuần này nằm đầu tiên
+            // Danh sách thứ tự xoay tua
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
@@ -466,7 +464,6 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
   }
 }
 
-// Màn hình chi tiết tra cứu lịch đến 2050
 class YearRangeMemberDetailScreen extends StatefulWidget {
   final Member member;
   final List<Member> members;
@@ -541,7 +538,6 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Dropdown chọn năm
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               decoration: BoxDecoration(
@@ -585,7 +581,6 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
             ),
             const SizedBox(height: 16),
 
-            // Thống kê
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(16),
