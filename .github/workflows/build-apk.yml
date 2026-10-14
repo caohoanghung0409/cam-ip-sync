@@ -14,7 +14,7 @@ jobs:
       - name: Setup Java (JDK 17)
         uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
+          distribution: 'temurin'
           java-version: '17'
 
       - name: Setup Flutter
@@ -23,10 +23,17 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Generate Android Skeleton & Set App Name
+      - name: Create Android Structure
         run: |
+          # Xóa thư mục android cũ nếu có để tránh xung đột
+          rm -rf android
+          # Tạo lại thư mục android chuẩn
           flutter create . --platforms=android --org com.noiday
-          sed -i 's/android:label=".*"/android:label="NỔI DẬY"/' android/app/src/main/AndroidManifest.xml
+
+          # Cập nhật tên app thành NỔI DẬY nếu file tồn tại
+          if [ -f android/app/src/main/AndroidManifest.xml ]; then
+            sed -i 's/android:label="[^"]*"/android:label="NỔI DẬY"/' android/app/src/main/AndroidManifest.xml || true
+          fi
 
       - name: Install dependencies
         run: flutter pub get
