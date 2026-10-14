@@ -28,7 +28,7 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: Initialize and Generate MESA Icon
+      - name: Initialize and Generate NOI DAY Icon
         run: |
           pip install pillow
 
@@ -41,7 +41,7 @@ jobs:
 
           cp ../lib/main.dart lib/main.dart
 
-          # Tạo icon MESA chuyên nghiệp cho tất cả kích thước Android
+          # Tạo icon hiển thị chữ NỔI DẬY nền đỏ viền vàng cho mọi kích thước Android
           python3 -c "
           from PIL import Image, ImageDraw, ImageFont
           import os
@@ -60,27 +60,32 @@ jobs:
               img = Image.new('RGBA', (sz, sz), color=(0, 0, 0, 0))
               draw = ImageDraw.Draw(img)
 
-              # Vẽ nền bo góc màu đỏ MESA
+              # Nền bo góc đỏ phong cách NỔI DẬY
               corner = int(sz * 0.22)
-              draw.rounded_rectangle([(0, 0), (sz - 1, sz - 1)], radius=corner, fill=(211, 47, 47, 255))
+              draw.rounded_rectangle([(0, 0), (sz - 1, sz - 1)], radius=corner, fill=(198, 40, 40, 255))
+              draw.rounded_rectangle([(1, 1), (sz - 2, sz - 2)], radius=corner, outline=(255, 215, 0, 220), width=max(1, int(sz*0.02)))
 
-              # Vẽ viền vàng mỏng
-              draw.rounded_rectangle([(1, 1), (sz - 2, sz - 2)], radius=corner, outline=(255, 215, 0, 200), width=max(1, int(sz*0.02)))
-
-              # Vẽ chữ MESA nổi bật ở giữa
-              # Dùng font mặc định có sẵn
               try:
-                  font = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', int(sz * 0.26))
+                  font1 = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', int(sz * 0.24))
+                  font2 = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', int(sz * 0.24))
               except:
-                  font = ImageFont.load_default()
+                  font1 = font2 = ImageFont.load_default()
 
-              bbox = draw.textbbox((0, 0), 'MESA', font=font)
-              w = bbox[2] - bbox[0]
-              h = bbox[3] - bbox[1]
-              draw.text(((sz - w) / 2, (sz - h) / 2 - int(sz * 0.04)), 'MESA', fill=(255, 255, 255, 255), font=font)
+              # Dòng 1: NỔI (hoặc NOI)
+              t1, t2 = 'NOI', 'DAY'
+              b1 = draw.textbbox((0, 0), t1, font=font1)
+              b2 = draw.textbbox((0, 0), t2, font=font2)
+
+              w1, h1 = b1[2] - b1[0], b1[3] - b1[1]
+              w2, h2 = b2[2] - b2[0], b2[3] - b2[1]
+
+              y_offset = (sz - (h1 + h2 + int(sz * 0.08))) / 2
+
+              draw.text(((sz - w1) / 2, y_offset), t1, fill=(255, 235, 59, 255), font=font1)
+              draw.text(((sz - w2) / 2, y_offset + h1 + int(sz * 0.08)), t2, fill=(255, 255, 255, 255), font=font2)
 
               img.save(os.path.join(target_dir, 'ic_launcher.png'))
-          print('Generated MESA icons successfully!')
+          print('Generated NOI DAY icons successfully!')
           "
 
           flutter build apk --release --no-tree-shake-icons
