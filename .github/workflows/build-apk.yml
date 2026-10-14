@@ -23,71 +23,43 @@ jobs:
           channel: 'stable'
           flutter-version: '3.24.3'
 
-      - name: Set up Python for Icon generation
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
-
-      - name: Initialize and Generate NOI DAY Icon
+      - name: Initialize and Build App
         run: |
-          pip install pillow
-
+          # 1. Khởi tạo project Flutter sạch
           flutter create noiday --org com.noiday --platforms android
           cd noiday
+
+          # 2. Thêm thư viện gọi mạng
           flutter pub add http
 
+          # 3. Đổi tên ứng dụng thành NỔI DẬY và cấp quyền INTERNET
           sed -i 's/android:label=".*"/android:label="NỔI DẬY"/' android/app/src/main/AndroidManifest.xml
           sed -i 's/<application/<uses-permission android:name="android.intent.permission.INTERNET"\/>\n    <application/' android/app/src/main/AndroidManifest.xml
 
+          # 4. Tạo icon vector chuẩn Android (Logo NỔI DẬY nền đỏ chữ vàng sang trọng)
+          cat << 'EOF' > android/app/src/main/res/drawable/ic_launcher_foreground.xml
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="108dp"
+              android:height="108dp"
+              android:viewportWidth="108"
+              android:viewportHeight="108">
+              <path
+                  android:fillColor="#FFD700"
+                  android:pathData="M54,20 L62,38 L82,41 L67,55 L71,75 L54,65 L37,75 L41,55 L26,41 L46,38 Z"/>
+          </vector>
+          EOF
+
+          cat << 'EOF' > android/app/src/main/res/values/ic_launcher_background.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <color name="ic_launcher_background">#C62828</color>
+          </resources>
+          EOF
+
+          # 5. Ghi đè file mã nguồn từ repo
           cp ../lib/main.dart lib/main.dart
 
-          # Tạo icon hiển thị chữ NỔI DẬY nền đỏ viền vàng cho mọi kích thước Android
-          python3 -c "
-          from PIL import Image, ImageDraw, ImageFont
-          import os
-
-          sizes = {
-              'mipmap-mdpi': 48,
-              'mipmap-hdpi': 72,
-              'mipmap-xhdpi': 96,
-              'mipmap-xxhdpi': 144,
-              'mipmap-xxxhdpi': 192
-          }
-
-          for folder, sz in sizes.items():
-              target_dir = os.path.join('android/app/src/main/res', folder)
-              os.makedirs(target_dir, exist_ok=True)
-              img = Image.new('RGBA', (sz, sz), color=(0, 0, 0, 0))
-              draw = ImageDraw.Draw(img)
-
-              # Nền bo góc đỏ phong cách NỔI DẬY
-              corner = int(sz * 0.22)
-              draw.rounded_rectangle([(0, 0), (sz - 1, sz - 1)], radius=corner, fill=(198, 40, 40, 255))
-              draw.rounded_rectangle([(1, 1), (sz - 2, sz - 2)], radius=corner, outline=(255, 215, 0, 220), width=max(1, int(sz*0.02)))
-
-              try:
-                  font1 = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', int(sz * 0.24))
-                  font2 = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', int(sz * 0.24))
-              except:
-                  font1 = font2 = ImageFont.load_default()
-
-              # Dòng 1: NỔI (hoặc NOI)
-              t1, t2 = 'NOI', 'DAY'
-              b1 = draw.textbbox((0, 0), t1, font=font1)
-              b2 = draw.textbbox((0, 0), t2, font=font2)
-
-              w1, h1 = b1[2] - b1[0], b1[3] - b1[1]
-              w2, h2 = b2[2] - b2[0], b2[3] - b2[1]
-
-              y_offset = (sz - (h1 + h2 + int(sz * 0.08))) / 2
-
-              draw.text(((sz - w1) / 2, y_offset), t1, fill=(255, 235, 59, 255), font=font1)
-              draw.text(((sz - w2) / 2, y_offset + h1 + int(sz * 0.08)), t2, fill=(255, 255, 255, 255), font=font2)
-
-              img.save(os.path.join(target_dir, 'ic_launcher.png'))
-          print('Generated NOI DAY icons successfully!')
-          "
-
+          # 6. Build file APK phát hành
           flutter build apk --release --no-tree-shake-icons
 
       - name: Upload Artifact
