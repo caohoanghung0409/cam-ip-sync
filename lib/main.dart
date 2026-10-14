@@ -1,228 +1,316 @@
 import 'dart:io';
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:media_kit/media_kit.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  MediaKit.ensureInitialized();
   runApp(const MaterialApp(
     debugShowCheckedModeBanner: false,
-    home: CameraSyncScreen(),
+    home: HikConnectCloneApp(),
   ));
 }
 
-class CameraSyncScreen extends StatefulWidget {
-  const CameraSyncScreen({super.key});
+class CameraDevice {
+  String name;
+  String hostOrDomain; // IP hoặc tên miền DDNS
+  int port;
+  String username;
+  String password;
+  String brand; // 'HIKVISION', 'DAHUA', 'IMOU'
+  bool isAutoResolve; // Thiết bị cần tự động phân giải DNS ra IP
 
-  @override
-  State<CameraSyncScreen> createState() => _CameraSyncScreenState();
+  CameraDevice({
+    required this.name,
+    required this.hostOrDomain,
+    this.port = 554,
+    required this.username,
+    required this.password,
+    required this.brand,
+    this.isAutoResolve = false,
+  });
 }
 
-class _CameraSyncScreenState extends State<CameraSyncScreen> {
-  final _domainController = TextEditingController(text: "mycam.ddns.net");
-  final _nvrIpController = TextEditingController(text: "192.168.1.100");
-  final _portController = TextEditingController(text: "80");
-  final _userController = TextEditingController(text: "admin");
-  final _pwdController = TextEditingController(text: "Password123@");
-  final _channelController = TextEditingController(text: "1");
+class HikConnectCloneApp extends StatefulWidget {
+  const HikConnectCloneApp({super.key});
 
-  String _deviceType = "hikvision";
-  String _statusLog = "Sẵn sàng hoạt động";
-  bool _isLoading = false;
+  @override
+  State<HikConnectCloneApp> createState() => _HikConnectCloneAppState();
+}
 
-  Future<String?> _resolveHost(String host) async {
-    try {
-      final results = await InternetAddress.lookup(host);
-      if (results.isNotEmpty) {
-        return results.first.address;
-      }
-    } catch (e) {
-      return null;
-    }
-    return null;
+class _HikConnectCloneAppState extends State<HikConnectCloneApp> {
+  int _currentIndex = 0;
+
+  // Danh sách camera đã nạp
+  final List<CameraDevice> _devices = [
+    CameraDevice(
+      name: "Camera Cổng (Auto DNS)",
+      hostOrDomain: "a.ddns.net",
+      port: 554,
+      username: "admin",
+      password: "Password123",
+      brand: "HIKVISION",
+      isAutoResolve: true, // Thiết bị đầu tiên cần phân giải IP
+    ),
+  ];
+
+  late final Player _player;
+  late final VideoController _videoController;
+  String _activeIpDisplay = "Chưa kết nối";
+  bool _isConnecting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _player = Player();
+    _videoController = VideoController(_player);
   }
 
-  Future<void> _handleSync() async {
+  @override
+  void dispose() {
+    _player.dispose();
+    super.dispose();
+  }
+
+  // Hàm tự phân giải tên miền ra IP và tạo link RTSP
+  Future<void> _playCamera(CameraDevice cam) async {
     setState(() {
-      _isLoading = true;
-      _statusLog = "Đang phân giải DNS tên miền...";
+      _isConnecting = true;
+      _activeIpDisplay = "Đang kiểm tra kết nối & DNS...";
     });
 
-    final domain = _domainController.text.trim();
-    final nvrIp = _nvrIpController.text.trim();
-    final port = _portController.text.trim();
-    final user = _userController.text.trim();
-    final pwd = _pwdController.text.trim();
-    final channel = int.tryParse(_channelController.text.trim()) ?? 1;
+    String targetIp = cam.hostOrDomain;
 
-    final resolvedIp = await _resolveHost(domain);
-    if (resolvedIp == null) {
-      setState(() {
-        _isLoading = false;
-        _statusLog = "❌ Lỗi: Không thể phân giải DNS từ '$domain'. Vui lòng kiểm tra lại tên miền.";
-      });
-      return;
-    }
-
-    setState(() {
-      _statusLog = "Đã tìm thấy IP: $resolvedIp\nĐang gửi lệnh tới thiết bị...";
-    });
-
-    try {
-      if (_deviceType == "dahua") {
-        final idx = channel - 1;
-        final uri = Uri.parse("http://$nvrIp:$port/cgi-bin/configManager.cgi?action=setConfig&RemoteDevice[$idx].Address=$resolvedIp");
-        final authHeader = 'Basic ${base64Encode(utf8.encode('$user:$pwd'))}';
-        
-        final res = await http.get(uri, headers: {
-          'Authorization': authHeader,
-        }).timeout(const Duration(seconds: 7));
-
-        if (res.statusCode == 200 && res.body.contains("OK")) {
-          _statusLog = " Thành công!\n- Kênh: $channel\n- Thiết bị: Dahua\n- IP mới: $resolvedIp";
-        } else {
-          _statusLog = "❌ Lỗi Dahua (HTTP ${res.statusCode}):\n${res.body}";
+    // Nếu thiết bị được đánh dấu tự phân giải tên miền
+    if (cam.isAutoResolve) {
+      try {
+        final lookup = await InternetAddress.lookup(cam.hostOrDomain);
+        if (lookup.isNotEmpty) {
+          targetIp = lookup.first.address;
         }
-      } else {
-        final uri = Uri.parse("http://$nvrIp:$port/ISAPI/ContentMgmt/InputProxy/channels/$channel");
-        final authHeader = 'Basic ${base64Encode(utf8.encode('$user:$pwd'))}';
-        final xmlBody = '''
-        <InputProxyChannel xmlns="http://www.hikvision.com/ver20/XMLSchema" version="2.0">
-          <id>$channel</id>
-          <sourceInputPortDescriptor>
-            <ipAddress>$resolvedIp</ipAddress>
-          </sourceInputPortDescriptor>
-        </InputProxyChannel>
-        ''';
-
-        final res = await http.put(
-          uri,
-          headers: {
-            'Authorization': authHeader,
-            'Content-Type': 'application/xml',
-          },
-          body: xmlBody,
-        ).timeout(const Duration(seconds: 7));
-
-        if (res.statusCode == 200 || res.statusCode == 204) {
-          _statusLog = " Thành công!\n- Kênh: $channel\n- Thiết bị: Hikvision\n- IP mới: $resolvedIp";
-        } else {
-          _statusLog = "❌ Lỗi Hikvision (HTTP ${res.statusCode}):\n${res.body}";
-        }
+      } catch (e) {
+        setState(() {
+          _isConnecting = false;
+          _activeIpDisplay = "Lỗi phân giải tên miền ${cam.hostOrDomain}";
+        });
+        return;
       }
-    } catch (e) {
-      _statusLog = "❌ Lỗi kết nối thiết bị: $e";
+    }
+
+    // Tạo URL RTSP theo từng hãng
+    String rtspUrl = "";
+    if (cam.brand == "HIKVISION") {
+      rtspUrl = "rtsp://${cam.username}:${cam.password}@$targetIp:${cam.port}/Streaming/Channels/101";
+    } else {
+      // DAHUA & IMOU dùng chung chuẩn luồng Dahua
+      rtspUrl = "rtsp://${cam.username}:${cam.password}@$targetIp:${cam.port}/cam/realmonitor?channel=1&subtype=0";
     }
 
     setState(() {
-      _isLoading = false;
+      _activeIpDisplay = "Đang xem: $targetIp (Port: ${cam.port})";
+      _isConnecting = false;
     });
+
+    await _player.open(Media(rtspUrl));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF4F5F7),
       appBar: AppBar(
-        title: const Text("Camera IP Sync Tool"),
-        backgroundColor: Colors.blueGrey,
-        foregroundColor: Colors.white,
+        backgroundColor: const Color(0xFFD32F2F), // Màu đỏ thương hiệu Hik-Connect
+        elevation: 0,
+        title: Text(
+          _currentIndex == 0 ? "Hik-Connect (Live View)" : "Quản lý thiết bị",
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add, color: Colors.white),
+            onPressed: () => _showAddDeviceDialog(),
+          ),
+        ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            TextField(
-              controller: _domainController,
-              decoration: const InputDecoration(labelText: "Tên miền DDNS camera nguồn", border: OutlineInputBorder()),
-            ),
-            const SizedBox(height: 12),
-            Row(
+      body: _currentIndex == 0 ? _buildLiveViewTab() : _buildDeviceListTab(),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        selectedItemColor: const Color(0xFFD32F2F),
+        unselectedItemColor: Colors.grey,
+        onTap: (idx) => setState(() => _currentIndex = idx),
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.videocam), label: "Xem trực tiếp"),
+          BottomNavigationBarItem(icon: Icon(Icons.devices_other), label: "Thiết bị"),
+        ],
+      ),
+    );
+  }
+
+  // Tab 1: Màn hình Live View giống Hik-Connect
+  Widget _buildLiveViewTab() {
+    return Column(
+      children: [
+        // Khung hiển thị Video
+        AspectRatio(
+          aspectRatio: 16 / 9,
+          child: Container(
+            color: Colors.black,
+            child: Stack(
+              alignment: Alignment.center,
               children: [
-                Expanded(
-                  flex: 3,
-                  child: TextField(
-                    controller: _nvrIpController,
-                    decoration: const InputDecoration(labelText: "IP NVR / Đầu ghi đích", border: OutlineInputBorder()),
-                  ),
+                Video(controller: _videoController),
+                if (_isConnecting)
+                  const CircularProgressIndicator(color: Colors.red),
+              ],
+            ),
+          ),
+        ),
+        // Thanh thông tin trạng thái IP
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          color: Colors.white,
+          child: Row(
+            children: [
+              const Icon(Icons.info_outline, size: 18, color: Colors.blueGrey),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  _activeIpDisplay,
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  flex: 1,
-                  child: TextField(
-                    controller: _portController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: "Port", border: OutlineInputBorder()),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        // Danh sách nhanh các camera để chọn xem
+        Expanded(
+          child: ListView.builder(
+            itemCount: _devices.length,
+            itemBuilder: (context, idx) {
+              final cam = _devices[idx];
+              return Card(
+                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                child: ListTile(
+                  leading: Icon(
+                    Icons.camera_alt,
+                    color: cam.isAutoResolve ? Colors.red : Colors.blueGrey,
                   ),
+                  title: Text(cam.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text("${cam.brand} - ${cam.hostOrDomain}"),
+                  trailing: const Icon(Icons.play_circle_fill, color: Color(0xFFD32F2F), size: 32),
+                  onTap: () => _playCamera(cam),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Tab 2: Danh sách quản lý thiết bị
+  Widget _buildDeviceListTab() {
+    return ListView.builder(
+      padding: const EdgeInsets.all(12),
+      itemCount: _devices.length,
+      itemBuilder: (context, idx) {
+        final cam = _devices[idx];
+        return Card(
+          elevation: 1,
+          margin: const EdgeInsets.only(bottom: 10),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(cam.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: Colors.red.shade200),
+                      ),
+                      child: Text(cam.brand, style: const TextStyle(color: Colors.red, fontSize: 11, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text("Địa chỉ: ${cam.hostOrDomain}:${cam.port}"),
+                Text("Cơ chế: ${cam.isAutoResolve ? 'Tự phân giải tên miền -> IP' : 'IP tĩnh'}"),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Dialog thêm thiết bị
+  void _showAddDeviceDialog() {
+    final nameCtrl = TextEditingController();
+    final hostCtrl = TextEditingController();
+    final userCtrl = TextEditingController(text: "admin");
+    final pwdCtrl = TextEditingController();
+    String selectedBrand = "HIKVISION";
+    bool autoDns = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text("Thêm thiết bị mới"),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: "Tên camera")),
+                TextField(controller: hostCtrl, decoration: const InputDecoration(labelText: "IP hoặc Domain DDNS")),
+                TextField(controller: userCtrl, decoration: const InputDecoration(labelText: "Username")),
+                TextField(controller: pwdCtrl, obscureText: true, decoration: const InputDecoration(labelText: "Password")),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  value: selectedBrand,
+                  items: const [
+                    DropdownMenuItem(value: "HIKVISION", child: Text("Hikvision")),
+                    DropdownMenuItem(value: "DAHUA", child: Text("Dahua")),
+                    DropdownMenuItem(value: "IMOU", child: Text("Imou")),
+                  ],
+                  onChanged: (val) => setDialogState(() => selectedBrand = val!),
+                  decoration: const InputDecoration(labelText: "Hãng sản xuất"),
+                ),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text("Tự động phân giải DNS ra IP", style: TextStyle(fontSize: 13)),
+                  value: autoDns,
+                  onChanged: (val) => setDialogState(() => autoDns = val ?? false),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _userController,
-                    decoration: const InputDecoration(labelText: "Username", border: OutlineInputBorder()),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    controller: _pwdController,
-                    obscureText: true,
-                    decoration: const InputDecoration(labelText: "Password", border: OutlineInputBorder()),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _channelController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: "Kênh (Channel)", border: OutlineInputBorder()),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    value: _deviceType,
-                    decoration: const InputDecoration(border: OutlineInputBorder(), labelText: "Loại thiết bị"),
-                    items: const [
-                      DropdownMenuItem(value: "hikvision", child: Text("Hikvision")),
-                      DropdownMenuItem(value: "dahua", child: Text("Dahua")),
-                    ],
-                    onChanged: (val) => setState(() => _deviceType = val!),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Hủy")),
             ElevatedButton(
-              onPressed: _isLoading ? null : _handleSync,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blueGrey,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-              child: _isLoading
-                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const Text("Phân giải DNS & Cập nhật IP", style: TextStyle(fontSize: 16)),
-            ),
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.black26),
-              ),
-              child: Text(
-                _statusLog,
-                style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
-              ),
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD32F2F)),
+              onPressed: () {
+                setState(() {
+                  _devices.add(CameraDevice(
+                    name: nameCtrl.text.isEmpty ? "Camera ${_devices.length + 1}" : nameCtrl.text,
+                    hostOrDomain: hostCtrl.text.trim(),
+                    username: userCtrl.text.trim(),
+                    password: pwdCtrl.text.trim(),
+                    brand: selectedBrand,
+                    isAutoResolve: autoDns,
+                  ));
+                });
+                Navigator.pop(ctx);
+              },
+              child: const Text("Lưu", style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
