@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 void main() {
   runApp(const NoiDayApp());
@@ -55,6 +57,7 @@ class MainDutyScreen extends StatefulWidget {
 }
 
 class _MainDutyScreenState extends State<MainDutyScreen> {
+  // Thứ tự xoay tua cố định: SÂM -> MINH -> TRINH -> HƯNG
   final List<Member> members = const [
     Member(name: "NGUYỄN THỊ SÂM", shortName: "SÂM", themeColor: Colors.deepOrange),
     Member(name: "NGUYỄN NGỌC HOÀNG MINH", shortName: "MINH", themeColor: Colors.blue),
@@ -62,55 +65,84 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     Member(name: "CAO HOÀNG HƯNG", shortName: "HƯNG", themeColor: Colors.teal),
   ];
 
-  late List<DutyShift> schedule;
+  // Mốc gốc chuẩn xác: Thứ 7 ngày 17/10/2026 là ca của SÂM (index 0)
+  static final DateTime baseSaturday = DateTime(2026, 10, 17);
+
+  DateTime _currentDate = DateTime.now();
+  bool _isOnlineTime = false;
+  bool _isLoadingTime = true;
 
   @override
   void initState() {
     super.initState();
-    schedule = _generateSchedule();
+    _fetchInternetTime();
   }
 
-  String? _checkHoliday(DateTime date) {
+  // Lấy giờ thực từ Internet (GMT+7)
+  Future<void> _fetchInternetTime() async {
+    try {
+      final res = await http
+          .get(Uri.parse('https://worldtimeapi.org/api/timezone/Asia/Ho_Chi_Minh'))
+          .timeout(const Duration(seconds: 4));
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        final internetDateStr = data['datetime'];
+        final parsedDate = DateTime.parse(internetDateStr);
+
+        if (mounted) {
+          setState(() {
+            _currentDate = parsedDate;
+            _isOnlineTime = true;
+            _isLoadingTime = false;
+          });
+        }
+        return;
+      }
+    } catch (_) {}
+
+    if (mounted) {
+      setState(() {
+        _currentDate = DateTime.now();
+        _isOnlineTime = false;
+        _isLoadingTime = false;
+      });
+    }
+  }
+
+  // Nhận diện ngày lễ cố định rơi vào Thứ 7
+  static String? checkHoliday(DateTime date) {
     if (date.month == 1 && date.day == 1) return "Tết Dương Lịch";
     if (date.month == 4 && date.day == 30) return "Giải Phóng Miền Nam";
     if (date.month == 5 && date.day == 1) return "Quốc Tế Lao Động";
     if (date.month == 9 && (date.day >= 1 && date.day <= 3)) return "Quốc Khánh 2/9";
-    if (date.year == 2027 && date.month == 2 && date.day == 6) return "Tết Nguyên Đán";
     return null;
   }
 
-  List<DutyShift> _generateSchedule() {
-    List<DutyShift> list = [];
-    DateTime currentSaturday = DateTime(2026, 10, 17);
-    int personIndex = 0;
+  // Tính ca trực của tuần hiện tại theo giờ thực
+  DutyShift _calculateThisWeekDuty(DateTime now) {
+    DateTime today = DateTime(now.year, now.month, now.day);
+    int daysUntilSaturday = 6 - today.weekday;
+    DateTime thisSaturday = today.add(Duration(days: daysUntilSaturday));
 
-    for (int i = 0; i < 52; i++) {
-      DateTime satDate = currentSaturday.add(Duration(days: i * 7));
-      String? holiday = _checkHoliday(satDate);
-      String person = members[personIndex % members.length].name;
+    int diffDays = thisSaturday.difference(baseSaturday).inDays;
+    int diffWeeks = (diffDays / 7).round();
+    int personIndex = (diffWeeks % members.length + members.length) % members.length;
 
-      if (holiday != null) {
-        list.add(DutyShift(
-          date: satDate,
-          assignedPerson: person,
-          isHoliday: true,
-          holidayName: holiday,
-        ));
-      } else {
-        list.add(DutyShift(
-          date: satDate,
-          assignedPerson: person,
-          isHoliday: false,
-        ));
-      }
-      personIndex++;
-    }
-    return list;
+    String person = members[personIndex].name;
+    String? holiday = checkHoliday(thisSaturday);
+
+    return DutyShift(
+      date: thisSaturday,
+      assignedPerson: person,
+      isHoliday: holiday != null,
+      holidayName: holiday,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final nextDuty = schedule.firstWhere((s) => !s.isHoliday);
+    final currentDuty = _calculateThisWeekDuty(_currentDate);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6F9),
@@ -129,10 +161,23 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
           style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white, fontSize: 18, letterSpacing: 0.5),
         ),
         centerTitle: true,
+        actions: [
+          IconButton(
+            tooltip: "Làm mới giờ mạng",
+            icon: _isLoadingTime
+                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                : const Icon(Icons.refresh, color: Colors.white),
+            onPressed: () {
+              setState(() => _isLoadingTime = true);
+              _fetchInternetTime();
+            },
+          )
+        ],
       ),
       body: SingleChildScrollView(
         child: Column(
           children: [
+            // Banner hiển thị ca trực tuần này
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(18),
@@ -154,36 +199,54 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        "TRỰC THỨ BẢY TUẦN NÀY",
-                        style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
+                      Row(
+                        children: [
+                          Icon(
+                            _isOnlineTime ? Icons.wifi : Icons.signal_wifi_off,
+                            color: _isOnlineTime ? Colors.lightGreenAccent : Colors.white60,
+                            size: 14,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            _isOnlineTime ? "GIỜ INTERNET (VIỆT NAM)" : "GIỜ HỆ THỐNG ĐIỆN THOẠI",
+                            style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
+                        ],
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.amber,
+                          color: currentDuty.isHoliday ? Colors.redAccent : Colors.amber,
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
-                          "${nextDuty.date.day.toString().padLeft(2, '0')}/${nextDuty.date.month.toString().padLeft(2, '0')}/${nextDuty.date.year}",
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.black87),
+                          "${currentDuty.date.day.toString().padLeft(2, '0')}/${currentDuty.date.month.toString().padLeft(2, '0')}/${currentDuty.date.year}",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            color: currentDuty.isHoliday ? Colors.white : Colors.black87,
+                          ),
                         ),
                       )
                     ],
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    nextDuty.assignedPerson,
+                    currentDuty.isHoliday ? "${currentDuty.assignedPerson} (MIỄN TRỰC)" : currentDuty.assignedPerson,
                     style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
-                    "Đến lượt cày cuốc, chuẩn bị tinh thần!",
-                    style: TextStyle(color: Colors.white70, fontSize: 12),
+                  Text(
+                    currentDuty.isHoliday
+                        ? "Trùng dịp lễ: ${currentDuty.holidayName} (Được nghỉ)"
+                        : "Đến lượt cày cuốc, chuẩn bị tinh thần!",
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
                   ),
                 ],
               ),
             ),
+
+            // Danh sách thành viên
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
@@ -209,9 +272,12 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => MemberDetailScreen(
+                                builder: (context) => YearRangeMemberDetailScreen(
                                   member: m,
-                                  allSchedule: schedule,
+                                  members: members,
+                                  initialYear: _currentDate.year >= 2026 && _currentDate.year <= 2050
+                                      ? _currentDate.year
+                                      : 2026,
                                 ),
                               ),
                             );
@@ -240,13 +306,9 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                                         m.name,
                                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                                       ),
-                                      Text(
-                                        idx == 0 ? "👉 Trực tuần này (17/10)" : "Nhấn để xem danh sách ca trực",
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: idx == 0 ? Colors.deepOrange : Colors.grey.shade600,
-                                          fontWeight: idx == 0 ? FontWeight.bold : FontWeight.normal,
-                                        ),
+                                      const Text(
+                                        "Tra cứu lịch trực xuyên suốt đến năm 2050",
+                                        style: TextStyle(fontSize: 12, color: Colors.grey),
                                       ),
                                     ],
                                   ),
@@ -270,26 +332,74 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
   }
 }
 
-class MemberDetailScreen extends StatelessWidget {
+// Màn hình chi tiết hỗ trợ chọn bất kỳ năm nào từ 2026 đến 2050
+class YearRangeMemberDetailScreen extends StatefulWidget {
   final Member member;
-  final List<DutyShift> allSchedule;
+  final List<Member> members;
+  final int initialYear;
 
-  const MemberDetailScreen({
+  const YearRangeMemberDetailScreen({
     super.key,
     required this.member,
-    required this.allSchedule,
+    required this.members,
+    required this.initialYear,
   });
 
   @override
+  State<YearRangeMemberDetailScreen> createState() => _YearRangeMemberDetailScreenState();
+}
+
+class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScreen> {
+  late int _selectedYear;
+  // Danh sách năm từ 2026 đến 2050 (25 năm)
+  final List<int> _years = List.generate(25, (index) => 2026 + index);
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedYear = widget.initialYear;
+  }
+
+  // Thuật toán tính nhanh toàn bộ các thứ 7 của một năm cụ thể cho thành viên
+  List<DutyShift> _getShiftsForYear(int year) {
+    List<DutyShift> shifts = [];
+    DateTime date = DateTime(year, 1, 1);
+
+    // Tìm thứ Bảy đầu tiên của năm đó
+    int daysUntilFirstSat = (6 - date.weekday + 7) % 7;
+    DateTime saturday = date.add(Duration(days: daysUntilFirstSat));
+
+    while (saturday.year == year) {
+      int diffDays = saturday.difference(_MainDutyScreenState.baseSaturday).inDays;
+      int diffWeeks = (diffDays / 7).round();
+      int personIndex = (diffWeeks % widget.members.length + widget.members.length) % widget.members.length;
+
+      String assignedName = widget.members[personIndex].name;
+      if (assignedName == widget.member.name) {
+        String? holiday = _MainDutyScreenState.checkHoliday(saturday);
+        shifts.add(DutyShift(
+          date: saturday,
+          assignedPerson: assignedName,
+          isHoliday: holiday != null,
+          holidayName: holiday,
+        ));
+      }
+
+      saturday = saturday.add(const Duration(days: 7));
+    }
+    return shifts;
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final myShifts = allSchedule.where((s) => s.assignedPerson == member.name).toList();
-    final actualShiftsCount = myShifts.where((s) => !s.isHoliday).length;
-    final holidayShiftsCount = myShifts.where((s) => s.isHoliday).length;
+    final memberShiftsInYear = _getShiftsForYear(_selectedYear);
+    final actualCount = memberShiftsInYear.where((s) => !s.isHoliday).length;
+    final holidayCount = memberShiftsInYear.where((s) => s.isHoliday).length;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
-        title: Text(member.name, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+        title: Text(widget.member.name, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
         backgroundColor: const Color(0xFF00796B),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
@@ -300,119 +410,165 @@ class MemberDetailScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
+            // Hộp chọn năm Dropdown thông minh (Từ 2026 đến 2050)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.teal.shade300, width: 1.5),
+                boxShadow: [
+                  BoxShadow(color: Colors.teal.withOpacity(0.08), blurRadius: 6, offset: const Offset(0, 2)),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.calendar_month, color: Color(0xFF00796B)),
+                      SizedBox(width: 8),
+                      Text("Chọn năm xem lịch:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    ],
+                  ),
+                  DropdownButtonHideUnderline(
+                    child: DropdownButton<int>(
+                      value: _selectedYear,
+                      icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF00796B), size: 30),
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF00796B)),
+                      items: _years.map((int year) {
+                        return DropdownMenuItem<int>(
+                          value: year,
+                          child: Text("NĂM $year"),
+                        );
+                      }).toList(),
+                      onChanged: (int? newYear) {
+                        if (newYear != null) {
+                          setState(() => _selectedYear = newYear);
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Thống kê tổng số ca trong năm đó
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: Colors.grey.shade200),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 3)),
+                  BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2)),
                 ],
               ),
               child: Column(
                 children: [
-                  CircleAvatar(
-                    radius: 28,
-                    backgroundColor: member.themeColor.withOpacity(0.15),
-                    child: Icon(Icons.person, size: 32, color: member.themeColor),
-                  ),
+                  Text("Tổng kết năm $_selectedYear", style: const TextStyle(fontSize: 14, color: Colors.blueGrey, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 10),
-                  Text(
-                    member.name,
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
-                  ),
-                  const SizedBox(height: 14),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _buildStatBox("Ca thực tế", "$actualShiftsCount ca", Colors.teal),
-                      Container(height: 30, width: 1, color: Colors.grey.shade300),
-                      _buildStatBox("Được miễn (Lễ)", "$holidayShiftsCount ca", Colors.deepOrange),
+                      _buildStatBox("Ca thực tế", "$actualCount ca", Colors.teal),
+                      Container(height: 28, width: 1, color: Colors.grey.shade300),
+                      _buildStatBox("Miễn trực (Lễ)", "$holidayCount ca", Colors.deepOrange),
                     ],
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 20),
+
+            // Danh sách các ca trực của năm được chọn
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                "DANH SÁCH CA TRỰC THỨ BẢY (52 TUẦN)",
+                "CÁC THỨ BẢY TRỰC NĂM $_selectedYear (${memberShiftsInYear.length} LƯỢT)",
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.blueGrey),
               ),
             ),
             const SizedBox(height: 10),
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: myShifts.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemBuilder: (context, idx) {
-                final shift = myShifts[idx];
-                final dateStr = "${shift.date.day.toString().padLeft(2, '0')}/${shift.date.month.toString().padLeft(2, '0')}/${shift.date.year}";
 
-                if (shift.isHoliday) {
+            if (memberShiftsInYear.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(20.0),
+                child: Text("Không có ca trực nào trong năm này.", style: TextStyle(color: Colors.grey)),
+              )
+            else
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: memberShiftsInYear.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (context, idx) {
+                  final shift = memberShiftsInYear[idx];
+                  final dateStr = "${shift.date.day.toString().padLeft(2, '0')}/${shift.date.month.toString().padLeft(2, '0')}/${shift.date.year}";
+
+                  if (shift.isHoliday) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.red.shade200),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.beach_access, color: Colors.red, size: 18),
+                              const SizedBox(width: 10),
+                              Text(dateStr, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+                            ],
+                          ),
+                          Text(
+                            "MIỄN TRỰC (${shift.holidayName})",
+                            style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 11),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
                   return Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     decoration: BoxDecoration(
-                      color: Colors.red.shade50,
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.red.shade200),
+                      border: Border.all(color: Colors.grey.shade200),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Row(
                           children: [
-                            const Icon(Icons.beach_access, color: Colors.red, size: 18),
+                            const Icon(Icons.event_available, color: Colors.teal, size: 18),
                             const SizedBox(width: 10),
-                            Text(dateStr, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+                            Text(dateStr, style: const TextStyle(fontWeight: FontWeight.w600)),
                           ],
                         ),
-                        Text(
-                          "MIỄN TRỰC (${shift.holidayName})",
-                          style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 11),
-                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.teal.shade50,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text(
+                            "ĐẾN LƯỢT TRỰC",
+                            style: TextStyle(color: Colors.teal, fontSize: 11, fontWeight: FontWeight.bold),
+                          ),
+                        )
                       ],
                     ),
                   );
-                }
+                },
+              ),
 
-                return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.grey.shade200),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.event_available, color: Colors.teal, size: 18),
-                          const SizedBox(width: 10),
-                          Text(dateStr, style: const TextStyle(fontWeight: FontWeight.w600)),
-                        ],
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: Colors.teal.shade50,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: const Text(
-                          "ĐẾN LƯỢT TRỰC",
-                          style: TextStyle(color: Colors.teal, fontSize: 11, fontWeight: FontWeight.bold),
-                        ),
-                      )
-                    ],
-                  ),
-                );
-              },
-            ),
             const SizedBox(height: 25),
             ElevatedButton.icon(
               onPressed: () => Navigator.pop(context),
