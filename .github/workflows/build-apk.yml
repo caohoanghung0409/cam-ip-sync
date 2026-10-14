@@ -11,7 +11,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Java (JDK 17)
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -23,26 +23,24 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Create Android Structure
+      - name: Build APK Clean
         run: |
-          # Xóa thư mục android cũ nếu có để tránh xung đột
-          rm -rf android
-          # Tạo lại thư mục android chuẩn
-          flutter create . --platforms=android --org com.noiday
+          # 1. Tạo project Flutter sạch độc lập
+          flutter create noiday_app --org com.noiday
 
-          # Cập nhật tên app thành NỔI DẬY nếu file tồn tại
-          if [ -f android/app/src/main/AndroidManifest.xml ]; then
-            sed -i 's/android:label="[^"]*"/android:label="NỔI DẬY"/' android/app/src/main/AndroidManifest.xml || true
-          fi
+          # 2. Đổi tên ứng dụng thành NỔI DẬY
+          sed -i 's/android:label=".*"/android:label="NỔI DẬY"/' noiday_app/android/app/src/main/AndroidManifest.xml
 
-      - name: Install dependencies
-        run: flutter pub get
+          # 3. Chép code giao diện của bạn vào project mới
+          cp lib/main.dart noiday_app/lib/main.dart
 
-      - name: Build APK (Release)
-        run: flutter build apk --release
+          # 4. Chuyển vào thư mục và build APK
+          cd noiday_app
+          flutter pub get
+          flutter build apk --release
 
-      - name: Upload APK artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Noi-Day-App
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: noiday_app/build/app/outputs/flutter-apk/app-release.apk
