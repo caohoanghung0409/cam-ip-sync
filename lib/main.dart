@@ -57,20 +57,20 @@ class MainDutyScreen extends StatefulWidget {
 }
 
 class _MainDutyScreenState extends State<MainDutyScreen> {
-  // Thứ tự xoay tua cố định: SÂM -> MINH -> TRINH -> HƯNG
-  final List<Member> members = const [
+  // Thứ tự gốc cố định: SÂM -> MINH -> TRINH -> HƯNG
+  final List<Member> baseMembers = const [
     Member(name: "NGUYỄN THỊ SÂM", shortName: "SÂM", themeColor: Colors.deepOrange),
     Member(name: "NGUYỄN NGỌC HOÀNG MINH", shortName: "MINH", themeColor: Colors.blue),
     Member(name: "LÂM TỐ TRINH", shortName: "TRINH", themeColor: Colors.purple),
     Member(name: "CAO HOÀNG HƯNG", shortName: "HƯNG", themeColor: Colors.teal),
   ];
 
-  // Mốc gốc chuẩn xác: Thứ 7 ngày 17/10/2026 là ca của SÂM (index 0)
+  // Mốc chuẩn: Thứ Bảy 17/10/2026 là ca của SÂM (vị trí 0)
   static final DateTime baseSaturday = DateTime(2026, 10, 17);
 
+  // Mặc định ban đầu dùng giờ máy để không bị trắng màn hình
   DateTime _currentDate = DateTime.now();
-  bool _isOnlineTime = false;
-  bool _isLoadingTime = true;
+  bool _isLoadingTime = false;
 
   @override
   void initState() {
@@ -78,12 +78,13 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     _fetchInternetTime();
   }
 
-  // Lấy giờ thực từ Internet (GMT+7)
+  // Ưu tiên 1: Lấy giờ Internet; Ưu tiên 2: Dùng giờ điện thoại
   Future<void> _fetchInternetTime() async {
+    setState(() => _isLoadingTime = true);
     try {
       final res = await http
           .get(Uri.parse('https://worldtimeapi.org/api/timezone/Asia/Ho_Chi_Minh'))
-          .timeout(const Duration(seconds: 4));
+          .timeout(const Duration(seconds: 2));
 
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
@@ -93,24 +94,24 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
         if (mounted) {
           setState(() {
             _currentDate = parsedDate;
-            _isOnlineTime = true;
             _isLoadingTime = false;
           });
         }
         return;
       }
-    } catch (_) {}
+    } catch (_) {
+      // Khi mất mạng hoặc lỗi mạng, tự động dùng giờ điện thoại
+    }
 
     if (mounted) {
       setState(() {
         _currentDate = DateTime.now();
-        _isOnlineTime = false;
         _isLoadingTime = false;
       });
     }
   }
 
-  // Nhận diện ngày lễ cố định rơi vào Thứ 7
+  // Nhận diện ngày lễ rơi vào Thứ 7
   static String? checkHoliday(DateTime date) {
     if (date.month == 1 && date.day == 1) return "Tết Dương Lịch";
     if (date.month == 4 && date.day == 30) return "Giải Phóng Miền Nam";
@@ -119,17 +120,26 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     return null;
   }
 
-  // Tính ca trực của tuần hiện tại theo giờ thực
-  DutyShift _calculateThisWeekDuty(DateTime now) {
+  // Tính khoảng cách tuần hiện tại so với mốc gốc
+  int _calculateCurrentWeekDiff(DateTime now) {
     DateTime today = DateTime(now.year, now.month, now.day);
     int daysUntilSaturday = 6 - today.weekday;
     DateTime thisSaturday = today.add(Duration(days: daysUntilSaturday));
 
     int diffDays = thisSaturday.difference(baseSaturday).inDays;
-    int diffWeeks = (diffDays / 7).round();
-    int personIndex = (diffWeeks % members.length + members.length) % members.length;
+    return (diffDays / 7).round();
+  }
 
-    String person = members[personIndex].name;
+  // Tính ca trực tuần này
+  DutyShift _calculateThisWeekDuty(DateTime now) {
+    DateTime today = DateTime(now.year, now.month, now.day);
+    int daysUntilSaturday = 6 - today.weekday;
+    DateTime thisSaturday = today.add(Duration(days: daysUntilSaturday));
+
+    int diffWeeks = _calculateCurrentWeekDiff(now);
+    int personIndex = (diffWeeks % baseMembers.length + baseMembers.length) % baseMembers.length;
+
+    String person = baseMembers[personIndex].name;
     String? holiday = checkHoliday(thisSaturday);
 
     return DutyShift(
@@ -140,9 +150,22 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     );
   }
 
+  // Tự động xoay danh sách 4 người: Người trực tuần này lên đầu tiên
+  List<Member> _getRotatedMembers(DateTime now) {
+    int diffWeeks = _calculateCurrentWeekDiff(now);
+    int startIndex = (diffWeeks % baseMembers.length + baseMembers.length) % baseMembers.length;
+
+    List<Member> rotated = [];
+    for (int i = 0; i < baseMembers.length; i++) {
+      rotated.add(baseMembers[(startIndex + i) % baseMembers.length]);
+    }
+    return rotated;
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentDuty = _calculateThisWeekDuty(_currentDate);
+    final rotatedMembers = _getRotatedMembers(_currentDate);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6F9),
@@ -153,7 +176,10 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
           padding: EdgeInsets.all(10.0),
           child: CircleAvatar(
             backgroundColor: Colors.white24,
-            child: Icon(Icons.flash_on, color: Colors.amber, size: 20),
+            child: Text(
+              "M",
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16),
+            ),
           ),
         ),
         title: const Text(
@@ -163,14 +189,11 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
         centerTitle: true,
         actions: [
           IconButton(
-            tooltip: "Làm mới giờ mạng",
+            tooltip: "Làm mới giờ",
             icon: _isLoadingTime
                 ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                 : const Icon(Icons.refresh, color: Colors.white),
-            onPressed: () {
-              setState(() => _isLoadingTime = true);
-              _fetchInternetTime();
-            },
+            onPressed: _fetchInternetTime,
           )
         ],
       ),
@@ -199,19 +222,9 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          Icon(
-                            _isOnlineTime ? Icons.wifi : Icons.signal_wifi_off,
-                            color: _isOnlineTime ? Colors.lightGreenAccent : Colors.white60,
-                            size: 14,
-                          ),
-                          const SizedBox(width: 5),
-                          Text(
-                            _isOnlineTime ? "GIỜ INTERNET (VIỆT NAM)" : "GIỜ HỆ THỐNG ĐIỆN THOẠI",
-                            style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold),
-                          ),
-                        ],
+                      const Text(
+                        "TRỰC THỨ BẢY TUẦN NÀY",
+                        style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -246,24 +259,26 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
               ),
             ),
 
-            // Danh sách thành viên
+            // Danh sách tự xoay vòng: Người trực tuần này luôn ở vị trí số 1
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    "THỨ TỰ XOAY TUA CA TRỰC",
+                    "THỨ TỰ XOAY TUA (TUẦN NÀY & KẾ TIẾP)",
                     style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.blueGrey),
                   ),
                   const SizedBox(height: 10),
                   ListView.separated(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    itemCount: members.length,
+                    itemCount: rotatedMembers.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 10),
                     itemBuilder: (context, idx) {
-                      final m = members[idx];
+                      final m = rotatedMembers[idx];
+                      final isCurrentWeekPerson = (idx == 0);
+
                       return Material(
                         color: Colors.transparent,
                         child: InkWell(
@@ -274,7 +289,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                               MaterialPageRoute(
                                 builder: (context) => YearRangeMemberDetailScreen(
                                   member: m,
-                                  members: members,
+                                  members: baseMembers,
                                   initialYear: _currentDate.year >= 2026 && _currentDate.year <= 2050
                                       ? _currentDate.year
                                       : 2026,
@@ -287,15 +302,23 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.grey.shade200),
+                              border: Border.all(
+                                color: isCurrentWeekPerson ? Colors.deepOrange.shade300 : Colors.grey.shade200,
+                                width: isCurrentWeekPerson ? 1.5 : 1,
+                              ),
                             ),
                             child: Row(
                               children: [
                                 CircleAvatar(
-                                  backgroundColor: m.themeColor.withOpacity(0.15),
-                                  foregroundColor: m.themeColor,
+                                  backgroundColor: isCurrentWeekPerson
+                                      ? Colors.deepOrange
+                                      : m.themeColor.withOpacity(0.15),
+                                  foregroundColor: isCurrentWeekPerson ? Colors.white : m.themeColor,
                                   radius: 20,
-                                  child: Text("${idx + 1}", style: const TextStyle(fontWeight: FontWeight.bold)),
+                                  child: Text(
+                                    "${idx + 1}",
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
                                 ),
                                 const SizedBox(width: 14),
                                 Expanded(
@@ -304,11 +327,21 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                                     children: [
                                       Text(
                                         m.name,
-                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 15,
+                                          color: isCurrentWeekPerson ? Colors.deepOrange.shade900 : Colors.black87,
+                                        ),
                                       ),
-                                      const Text(
-                                        "Tra cứu lịch trực xuyên suốt đến năm 2050",
-                                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                                      Text(
+                                        isCurrentWeekPerson
+                                            ? "👉 Trực tuần này"
+                                            : (idx == 1 ? "Tuần tới" : (idx == 2 ? "2 tuần nữa" : "3 tuần nữa")),
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: isCurrentWeekPerson ? Colors.deepOrange : Colors.grey.shade600,
+                                          fontWeight: isCurrentWeekPerson ? FontWeight.bold : FontWeight.normal,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -332,7 +365,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
   }
 }
 
-// Màn hình chi tiết hỗ trợ chọn bất kỳ năm nào từ 2026 đến 2050
+// Màn hình chi tiết tra cứu lịch đến năm 2050
 class YearRangeMemberDetailScreen extends StatefulWidget {
   final Member member;
   final List<Member> members;
@@ -351,7 +384,6 @@ class YearRangeMemberDetailScreen extends StatefulWidget {
 
 class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScreen> {
   late int _selectedYear;
-  // Danh sách năm từ 2026 đến 2050 (25 năm)
   final List<int> _years = List.generate(25, (index) => 2026 + index);
 
   @override
@@ -360,12 +392,10 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
     _selectedYear = widget.initialYear;
   }
 
-  // Thuật toán tính nhanh toàn bộ các thứ 7 của một năm cụ thể cho thành viên
   List<DutyShift> _getShiftsForYear(int year) {
     List<DutyShift> shifts = [];
     DateTime date = DateTime(year, 1, 1);
 
-    // Tìm thứ Bảy đầu tiên của năm đó
     int daysUntilFirstSat = (6 - date.weekday + 7) % 7;
     DateTime saturday = date.add(Duration(days: daysUntilFirstSat));
 
@@ -410,7 +440,7 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Hộp chọn năm Dropdown thông minh (Từ 2026 đến 2050)
+            // Ô chọn năm Dropdown từ 2026 đến 2050
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               decoration: BoxDecoration(
@@ -454,7 +484,7 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
             ),
             const SizedBox(height: 16),
 
-            // Thống kê tổng số ca trong năm đó
+            // Thống kê ca trực
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(16),
@@ -483,7 +513,7 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
             ),
             const SizedBox(height: 20),
 
-            // Danh sách các ca trực của năm được chọn
+            // Danh sách các ca
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
