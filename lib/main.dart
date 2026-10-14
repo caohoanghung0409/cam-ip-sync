@@ -32,6 +32,107 @@ class DutyShift {
   });
 }
 
+// ================= THUẬT TOÁN ÂM LỊCH VIỆT NAM (HỒ NGỌC ĐỨC) =================
+class LunarDate {
+  final int day;
+  final int month;
+  final int year;
+  final bool isLeap;
+
+  LunarDate(this.day, this.month, this.year, [this.isLeap = false]);
+
+  static const double pi = 3.14159265358979323846;
+
+  static int _jdFromDate(int dd, int mm, int yy) {
+    int a = ((14 - mm) / 12).floor();
+    int y = yy + 4800 - a;
+    int m = mm + 12 * a - 3;
+    int jd = dd + ((153 * m + 2) / 5).floor() + 365 * y + (y / 4).floor() - (y / 100).floor() + (y / 400).floor() - 32045;
+    if (jd < 2299161) {
+      jd = dd + ((153 * m + 2) / 5).floor() + 365 * y + (y / 4).floor() - 32083;
+    }
+    return jd;
+  }
+
+  static double _newMoon(int k) {
+    double t = k / 1236.85;
+    double t2 = t * t;
+    double t3 = t2 * t;
+    double dr = pi / 180;
+    double jde = 2415020.75933 + 29.53058868 * k + 0.0001178 * t2 - 0.000000155 * t3;
+    jde += 0.00033 * (166.56 + 132.87 * t - 0.009173 * t2) * dr;
+    double m = 359.2242 + 29.10535608 * k - 0.0000333 * t2 - 0.00000347 * t3;
+    double mpr = 306.0253 + 385.81691806 * k + 0.0107306 * t2 + 0.00001236 * t3;
+    double f = 21.2964 + 390.67050646 * k - 0.0016528 * t2 - 0.00000239 * t3;
+    double c1 = (0.1734 - 0.000393 * t) * (m * dr).sin() + 0.0021 * (2 * m * dr).sin();
+    c1 -= 0.4068 * (mpr * dr).sin() + 0.0161 * (2 * mpr * dr).sin();
+    c1 -= 0.0004 * (3 * mpr * dr).sin();
+    c1 += 0.0104 * (2 * f * dr).sin() - 0.0051 * ((m + mpr) * dr).sin();
+    c1 -= 0.0074 * ((m - mpr) * dr).sin() + 0.0004 * ((2 * f + m) * dr).sin();
+    c1 -= 0.0004 * ((2 * f - m) * dr).sin() - 0.0006 * ((2 * f + mpr) * dr).sin();
+    c1 += 0.0010 * ((2 * f - mpr) * dr).sin() + 0.0005 * ((2 * mpr + m) * dr).sin();
+    return jde + c1;
+  }
+
+  static double _sunLongitude(double jdn) {
+    double t = (jdn - 2451545.0) / 36525;
+    double dr = pi / 180;
+    double l0 = 280.46645 + 36000.76983 * t + 0.0003032 * t * t;
+    double m = 357.52910 + 35999.05030 * t - 0.0001559 * t * t - 0.00000048 * t * t * t;
+    double c = (1.914600 - 0.004817 * t - 0.000014 * t * t) * (m * dr).sin() +
+        (0.019993 - 0.000101 * t) * (2 * m * dr).sin() +
+        0.000290 * (3 * m * dr).sin();
+    double theta = l0 + c;
+    theta = theta - 360 * (theta / 360).floor();
+    return theta * dr;
+  }
+
+  static int _getSunLongitude(int dayNumber, double timeZone) {
+    return (_sunLongitude(dayNumber - 0.5 - timeZone / 24) / (pi / 6)).floor();
+  }
+
+  static int _getLunarMonth11(int yy, double timeZone) {
+    double off = _jdFromDate(31, 12, yy) - 2415021.076998695;
+    int k = (off / 29.53058868).floor();
+    double nm = _newMoon(k);
+    int sunLong = _getSunLongitude((nm + 0.5 + timeZone / 24).floor(), timeZone);
+    if (sunLong >= 9) {
+      nm = _newMoon(k - 1);
+    }
+    return (nm + 0.5 + timeZone / 24).floor();
+  }
+
+  static LunarDate fromSolar(int dd, int mm, int yy, [double timeZone = 7.0]) {
+    int dayNumber = _jdFromDate(dd, mm, yy);
+    int k = ((dayNumber - 2415021.076998695) / 29.53058868).floor();
+    int lastNm = (_newMoon(k) + 0.5 + timeZone / 24).floor();
+    if (lastNm > dayNumber) {
+      lastNm = (_newMoon(k - 1) + 0.5 + timeZone / 24).floor();
+    }
+    int a11 = _getLunarMonth11(yy, timeZone);
+    int b11 = a11;
+    int lunarYear = yy;
+    if (dayNumber < a11) {
+      a11 = _getLunarMonth11(yy - 1, timeZone);
+      lunarYear = yy - 1;
+    } else {
+      b11 = _getLunarMonth11(yy + 1, timeZone);
+      if (dayNumber >= b11) {
+        lunarYear = yy + 1;
+        a11 = b11;
+      }
+    }
+    int lunarDay = dayNumber - lastNm + 1;
+    int diff = ((lastNm - a11) / 29).round();
+    int lunarMonth = diff + 11;
+    if (lunarMonth > 12) {
+      lunarMonth -= 12;
+    }
+    return LunarDate(lunarDay, lunarMonth, lunarYear);
+  }
+}
+
+// ================= APP CHÍNH =================
 class NoiDayApp extends StatelessWidget {
   const NoiDayApp({super.key});
 
@@ -57,7 +158,6 @@ class MainDutyScreen extends StatefulWidget {
 }
 
 class _MainDutyScreenState extends State<MainDutyScreen> {
-  // Thứ tự gốc cố định: SÂM -> MINH -> TRINH -> HƯNG
   final List<Member> baseMembers = const [
     Member(name: "NGUYỄN THỊ SÂM", shortName: "SÂM", themeColor: Colors.deepOrange),
     Member(name: "NGUYỄN NGỌC HOÀNG MINH", shortName: "MINH", themeColor: Colors.blue),
@@ -65,10 +165,8 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     Member(name: "CAO HOÀNG HƯNG", shortName: "HƯNG", themeColor: Colors.teal),
   ];
 
-  // Mốc chuẩn: Thứ Bảy 17/10/2026 là ca của SÂM (vị trí 0)
   static final DateTime baseSaturday = DateTime(2026, 10, 17);
 
-  // Mặc định ban đầu dùng giờ máy để không bị trắng màn hình
   DateTime _currentDate = DateTime.now();
   bool _isLoadingTime = false;
 
@@ -78,7 +176,6 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     _fetchInternetTime();
   }
 
-  // Ưu tiên 1: Lấy giờ Internet; Ưu tiên 2: Dùng giờ điện thoại
   Future<void> _fetchInternetTime() async {
     setState(() => _isLoadingTime = true);
     try {
@@ -99,9 +196,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
         }
         return;
       }
-    } catch (_) {
-      // Khi mất mạng hoặc lỗi mạng, tự động dùng giờ điện thoại
-    }
+    } catch (_) {}
 
     if (mounted) {
       setState(() {
@@ -111,16 +206,33 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     }
   }
 
-  // Nhận diện ngày lễ rơi vào Thứ 7
+  // TÍNH CẢ LỄ DƯƠNG LỊCH & ÂM LỊCH CHUẨN XÁC
   static String? checkHoliday(DateTime date) {
+    // 1. Lễ Dương Lịch
     if (date.month == 1 && date.day == 1) return "Tết Dương Lịch";
     if (date.month == 4 && date.day == 30) return "Giải Phóng Miền Nam";
     if (date.month == 5 && date.day == 1) return "Quốc Tế Lao Động";
     if (date.month == 9 && (date.day >= 1 && date.day <= 3)) return "Quốc Khánh 2/9";
+
+    // 2. Lễ Âm Lịch (Quy đổi thiên văn Việt Nam)
+    LunarDate lunar = LunarDate.fromSolar(date.day, date.month, date.year);
+
+    // Tết Nguyên Đán (từ 29, 30 Tết đến hết Mùng 5 Tết)
+    if (lunar.month == 12 && (lunar.day == 29 || lunar.day == 30)) {
+      return "Nghỉ Tết Nguyên Đán (Tất Niên)";
+    }
+    if (lunar.month == 1 && (lunar.day >= 1 && lunar.day <= 5)) {
+      return "Tết Nguyên Đán (Mùng ${lunar.day})";
+    }
+
+    // Giỗ Tổ Hùng Vương (10/3 Âm lịch)
+    if (lunar.month == 3 && lunar.day == 10) {
+      return "Giỗ Tổ Hùng Vương (10/3 ÂL)";
+    }
+
     return null;
   }
 
-  // Tính khoảng cách tuần hiện tại so với mốc gốc
   int _calculateCurrentWeekDiff(DateTime now) {
     DateTime today = DateTime(now.year, now.month, now.day);
     int daysUntilSaturday = 6 - today.weekday;
@@ -130,7 +242,6 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     return (diffDays / 7).round();
   }
 
-  // Tính ca trực tuần này
   DutyShift _calculateThisWeekDuty(DateTime now) {
     DateTime today = DateTime(now.year, now.month, now.day);
     int daysUntilSaturday = 6 - today.weekday;
@@ -150,7 +261,6 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     );
   }
 
-  // Tự động xoay danh sách 4 người: Người trực tuần này lên đầu tiên
   List<Member> _getRotatedMembers(DateTime now) {
     int diffWeeks = _calculateCurrentWeekDiff(now);
     int startIndex = (diffWeeks % baseMembers.length + baseMembers.length) % baseMembers.length;
@@ -176,10 +286,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
           padding: EdgeInsets.all(10.0),
           child: CircleAvatar(
             backgroundColor: Colors.white24,
-            child: Text(
-              "M",
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16),
-            ),
+            child: Icon(Icons.flash_on, color: Colors.amber, size: 20),
           ),
         ),
         title: const Text(
@@ -189,7 +296,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
         centerTitle: true,
         actions: [
           IconButton(
-            tooltip: "Làm mới giờ",
+            tooltip: "Làm mới",
             icon: _isLoadingTime
                 ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                 : const Icon(Icons.refresh, color: Colors.white),
@@ -200,7 +307,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // Banner hiển thị ca trực tuần này
+            // Banner ca trực tuần này
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(18),
@@ -259,7 +366,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
               ),
             ),
 
-            // Danh sách tự xoay vòng: Người trực tuần này luôn ở vị trí số 1
+            // Thứ tự xoay tua: Người trực tuần này nằm đầu tiên
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
@@ -365,7 +472,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
   }
 }
 
-// Màn hình chi tiết tra cứu lịch đến năm 2050
+// Màn hình chi tiết tra cứu lịch đến 2050
 class YearRangeMemberDetailScreen extends StatefulWidget {
   final Member member;
   final List<Member> members;
@@ -440,7 +547,7 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Ô chọn năm Dropdown từ 2026 đến 2050
+            // Dropdown chọn năm
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               decoration: BoxDecoration(
@@ -484,7 +591,7 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
             ),
             const SizedBox(height: 16),
 
-            // Thống kê ca trực
+            // Thống kê
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(16),
@@ -505,7 +612,7 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
                     children: [
                       _buildStatBox("Ca thực tế", "$actualCount ca", Colors.teal),
                       Container(height: 28, width: 1, color: Colors.grey.shade300),
-                      _buildStatBox("Miễn trực (Lễ)", "$holidayCount ca", Colors.deepOrange),
+                      _buildStatBox("Miễn trực (Lễ/Tết)", "$holidayCount ca", Colors.deepOrange),
                     ],
                   ),
                 ],
@@ -513,7 +620,6 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
             ),
             const SizedBox(height: 20),
 
-            // Danh sách các ca
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
@@ -556,9 +662,12 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
                               Text(dateStr, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
                             ],
                           ),
-                          Text(
-                            "MIỄN TRỰC (${shift.holidayName})",
-                            style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 11),
+                          Flexible(
+                            child: Text(
+                              "MIỄN TRỰC (${shift.holidayName})",
+                              textAlign: TextAlign.right,
+                              style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 11),
+                            ),
                           ),
                         ],
                       ),
