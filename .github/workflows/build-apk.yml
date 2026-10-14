@@ -23,76 +23,46 @@ jobs:
           channel: 'stable'
           flutter-version: '3.24.3'
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
-
-      - name: Initialize App & Generate NOI DAY Icon
+      - name: Initialize App and Setup Vector Icon
         run: |
-          pip install pillow
-
-          # 1. Khởi tạo project Flutter sạch
+          # 1. Tạo project Flutter chuẩn
           flutter create noiday --org com.noiday --platforms android
           cd noiday
           flutter pub add http
 
-          # 2. Đặt tên ứng dụng thành NỔI DẬY và cấp quyền INTERNET
+          # 2. Đổi tên ứng dụng thành NỔI DẬY và cấp quyền INTERNET
           sed -i 's/android:label=".*"/android:label="NỔI DẬY"/' android/app/src/main/AndroidManifest.xml
           sed -i 's/<application/<uses-permission android:name="android.intent.permission.INTERNET"\/>\n    <application/' android/app/src/main/AndroidManifest.xml
 
-          # 3. Tạo icon logo NỔI DẬY (nền đỏ, viền vàng kim, khối huy hiệu N-D nổi bật)
-          python3 -c "
-          from PIL import Image, ImageDraw
-          import os
+          # 3. Tạo icon Vector biểu tượng NỔI DẬY nền đỏ viền vàng chuẩn Android
+          cat << 'EOF' > android/app/src/main/res/drawable/ic_launcher_foreground.xml
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="108dp"
+              android:height="108dp"
+              android:viewportWidth="108"
+              android:viewportHeight="108">
+              <!-- Vòng hào quang vàng -->
+              <path
+                  android:fillColor="#FFD700"
+                  android:pathData="M54,18 L64,36 L84,39 L69,54 L73,74 L54,64 L35,74 L39,54 L24,39 L44,36 Z"/>
+              <!-- Tia chớp nổi dậy trung tâm -->
+              <path
+                  android:fillColor="#FFFFFF"
+                  android:pathData="M56,26 L42,50 L52,50 L46,76 L66,48 L54,48 Z"/>
+          </vector>
+          EOF
 
-          sizes = {
-              'mipmap-mdpi': 48,
-              'mipmap-hdpi': 72,
-              'mipmap-xhdpi': 96,
-              'mipmap-xxhdpi': 144,
-              'mipmap-xxxhdpi': 192
-          }
+          cat << 'EOF' > android/app/src/main/res/values/ic_launcher_background.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <color name="ic_launcher_background">#C62828</color>
+          </resources>
+          EOF
 
-          for folder, sz in sizes.items():
-              target_dir = os.path.join('android/app/src/main/res', folder)
-              os.makedirs(target_dir, exist_ok=True)
-              img = Image.new('RGBA', (sz, sz), color=(0, 0, 0, 0))
-              draw = ImageDraw.Draw(img)
-
-              # Bo góc nền đỏ đậm NỔI DẬY
-              corner = int(sz * 0.22)
-              draw.rounded_rectangle([(0, 0), (sz - 1, sz - 1)], radius=corner, fill=(198, 40, 40, 255))
-              # Viền vàng kim
-              draw.rounded_rectangle([(1, 1), (sz - 2, sz - 2)], radius=corner, outline=(255, 215, 0, 240), width=max(1, int(sz * 0.03)))
-
-              # Vẽ biểu tượng tia sét / ngôi sao cách điệu NỔI DẬY màu vàng kim
-              cx, cy = sz / 2, sz / 2
-              scale = sz / 100.0
-              lightning = [
-                  (cx + 8 * scale, cy - 35 * scale),
-                  (cx - 20 * scale, cy + 2 * scale),
-                  (cx - 2 * scale, cy + 2 * scale),
-                  (cx - 10 * scale, cy + 35 * scale),
-                  (cx + 20 * scale, cy - 4 * scale),
-                  (cx + 2 * scale, cy - 4 * scale)
-              ]
-              draw.polygon(lightning, fill=(255, 235, 59, 255))
-
-              # Khung nhãn chữ ND (Nổi Dậy) ở chân icon
-              tag_h = int(sz * 0.22)
-              tag_y = int(sz * 0.72)
-              draw.rectangle([(int(sz * 0.15), tag_y), (int(sz * 0.85), tag_y + tag_h)], fill=(0, 0, 0, 160))
-              draw.text((int(sz * 0.28), tag_y + int(sz * 0.02)), 'NOI DAY', fill=(255, 255, 255, 255))
-
-              img.save(os.path.join(target_dir, 'ic_launcher.png'))
-          print('Generated NOI DAY logo icon successfully!')
-          "
-
-          # 4. Chép file main.dart vào project
+          # 4. Chép file mã nguồn lib/main.dart từ repo
           cp ../lib/main.dart lib/main.dart
 
-          # 5. Build APK
+          # 5. Biên dịch APK
           flutter build apk --release --no-tree-shake-icons
 
       - name: Upload Artifact
