@@ -28,7 +28,7 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: Initialize App & Setup Clear S TSMH Icon
+      - name: Initialize App & Setup Sharp TSMH Icon
         run: |
           pip install pillow
 
@@ -41,7 +41,7 @@ jobs:
           sed -i 's/android:label=".*"/android:label="NỔI DẬY"/' android/app/src/main/AndroidManifest.xml
           sed -i 's/<application/<uses-permission android:name="android.intent.permission.INTERNET"\/>\n    <application/' android/app/src/main/AndroidManifest.xml
 
-          # Tạo ảnh icon TSMH sắc nét với chữ S chuẩn hình dáng
+          # Tạo ảnh PNG icon TSMH với chữ S uốn lượn sắc sảo
           python3 -c "
           from PIL import Image, ImageDraw
           import os
@@ -50,11 +50,11 @@ jobs:
           img = Image.new('RGBA', (sz, sz), color=(0, 0, 0, 0))
           draw = ImageDraw.Draw(img)
 
-          # Nền bo góc đỏ Ruby
+          # Nền đỏ Ruby bo góc
           corner = 110
           draw.rounded_rectangle([(0, 0), (sz - 1, sz - 1)], radius=corner, fill=(139, 0, 0, 255))
 
-          # Viền kim cương đôi vàng Gold 24K
+          # Khung kim cương mạ vàng Gold 24K
           draw.polygon([(256, 40), (472, 256), (256, 472), (40, 256)], outline=(255, 215, 0, 255), width=8)
           draw.polygon([(256, 58), (454, 256), (256, 454), (58, 256)], outline=(255, 248, 220, 200), width=4)
 
@@ -62,7 +62,7 @@ jobs:
           for pt in [(256, 24), (256, 488), (24, 256), (488, 256)]:
               draw.ellipse([(pt[0]-10, pt[1]-10), (pt[0]+10, pt[1]+10)], fill=(255, 215, 0, 255))
 
-          # Trục phân tách chữ thập
+          # Trục phân cách chữ thập mạ vàng
           draw.line([(256, 160), (256, 352)], fill=(255, 215, 0, 140), width=4)
           draw.line([(160, 256), (352, 256)], fill=(255, 215, 0, 140), width=4)
 
@@ -70,18 +70,18 @@ jobs:
           draw.line([(145, 150), (225, 150)], fill=(255, 215, 0, 255), width=15)
           draw.line([(185, 150), (185, 225)], fill=(255, 215, 0, 255), width=15)
 
-          # Chữ S (Trắng Silver) - Vẽ 5 điểm uốn lượn rõ ràng chữ S
-          s_points = [
-              (360, 152), (320, 145), (298, 162),
-              (300, 185), (330, 198), (362, 212),
-              (365, 235), (335, 252), (295, 245)
+          # Chữ S chuẩn nét (Trắng Bạc Silver)
+          s_pts = [
+              (362, 152), (322, 144), (298, 162),
+              (300, 185), (330, 200), (362, 214),
+              (364, 236), (336, 254), (296, 246)
           ]
-          for i in range(len(s_points) - 1):
-              draw.line([s_points[i], s_points[i+1]], fill=(255, 255, 255, 255), width=15)
-          for pt in s_points:
+          for i in range(len(s_pts) - 1):
+              draw.line([s_pts[i], s_pts[i+1]], fill=(255, 255, 255, 255), width=15)
+          for pt in s_pts:
               draw.ellipse([(pt[0]-7, pt[1]-7), (pt[0]+7, pt[1]+7)], fill=(255, 255, 255, 255))
 
-          # Chữ M (Trắng Silver)
+          # Chữ M (Trắng Bạc Silver)
           draw.line([(145, 362), (145, 290)], fill=(255, 255, 255, 255), width=15)
           draw.line([(145, 290), (185, 335)], fill=(255, 255, 255, 255), width=15)
           draw.line([(185, 335), (225, 290)], fill=(255, 255, 255, 255), width=15)
@@ -94,18 +94,18 @@ jobs:
 
           os.makedirs('assets', exist_ok=True)
           img.save('assets/icon.png')
-          print('Created sharp TSMH icon successfully!')
+          print('Successfully generated sharp TSMH icon!')
           "
 
-          cat << 'EOF' >> pubspec.yaml
-
+          # Tạo file cấu hình riêng độc lập để tránh lỗi thụt lề YAML
+          cat << 'EOF' > flutter_launcher_icons.yaml
           flutter_launcher_icons:
             android: "launcher_icon"
             image_path: "assets/icon.png"
             min_sdk_android: 21
           EOF
 
-          flutter pub run flutter_launcher_icons
+          dart run flutter_launcher_icons
 
           cp ../lib/main.dart lib/main.dart
 
