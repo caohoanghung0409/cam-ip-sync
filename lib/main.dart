@@ -11,7 +11,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Danh Sách',
+      title: 'NỔI DẬY',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
         useMaterial3: true,
@@ -37,7 +37,7 @@ class MemberListScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          "DANH SÁCH THÀNH VIÊN",
+          "NỔI DẬY",
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 18),
         ),
         centerTitle: true,
@@ -56,7 +56,6 @@ class MemberListScreen extends StatelessWidget {
               child: InkWell(
                 borderRadius: BorderRadius.circular(12),
                 onTap: () {
-                  // Chuyển sang màn hình chi tiết khi bấm vào tên
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -132,7 +131,7 @@ class DetailScreen extends StatelessWidget {
         backgroundColor: Colors.teal,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context), // Nút quay lại trên AppBar
+          onPressed: () => Navigator.pop(context),
         ),
       ),
       body: Center(
@@ -177,7 +176,6 @@ class DetailScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 35),
-              // Nút bấm quay lại ở giữa màn hình
               ElevatedButton.icon(
                 onPressed: () => Navigator.pop(context),
                 icon: const Icon(Icons.arrow_back),
