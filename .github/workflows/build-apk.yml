@@ -1,7 +1,7 @@
 name: Build Android APK
 
 on:
-  workflow_dispatch: # Cho phép bấm nút Build thủ công bất cứ lúc nào
+  workflow_dispatch:
 
 jobs:
   build:
@@ -23,13 +23,12 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Generate Android Skeleton
+      - name: Generate Android Skeleton & Set App Name
         run: |
-          # Khởi tạo các file Android nền tảng còn thiếu
-          flutter create . --platforms=android --org com.camsync
+          flutter create . --platforms=android --org com.noiday
 
-          # Cấp quyền INTERNET và cho phép kết nối HTTP nội bộ
-          sed -i 's/<application/<uses-permission android:name="android.intent.permission.INTERNET"\/>\n    <uses-permission android:name="android.intent.permission.ACCESS_NETWORK_STATE"\/>\n    <application android:usesCleartextTraffic="true"/' android/app/src/main/AndroidManifest.xml
+          # Đổi tên app thành NỔI DẬY hiển thị trên màn hình điện thoại
+          sed -i 's/android:label=".*"/android:label="NỔI DẬY"/' android/app/src/main/AndroidManifest.xml
 
       - name: Install dependencies
         run: flutter pub get
@@ -40,5 +39,5 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Camera-Sync-App
+          name: Noi-Day-App
           path: build/app/outputs/flutter-apk/app-release.apk
