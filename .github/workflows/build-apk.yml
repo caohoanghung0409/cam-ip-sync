@@ -25,19 +25,22 @@ jobs:
 
       - name: Initialize and Build App
         run: |
-          # 1. Tạo project chuẩn mới
+          # 1. Tạo project chuẩn
           flutter create noiday --org com.noiday --platforms android
 
-          # 2. Đổi tên ứng dụng hiển thị ngoài màn hình thành NỔI DẬY
-          sed -i 's/android:label=".*"/android:label="NỔI DẬY"/' noiday/android/app/src/main/AndroidManifest.xml
-
-          # 3. Ghi đè file main.dart bằng file trong repo
-          cp lib/main.dart noiday/lib/main.dart
-
-          # 4. Di chuyển vào thư mục và build
           cd noiday
-          flutter pub get
-          flutter analyze || true
+
+          # 2. Tự động thêm thư viện http trực tiếp bằng lệnh Flutter chuẩn
+          flutter pub add http
+
+          # 3. Đổi tên ứng dụng thành NỔI DẬY và cấp quyền INTERNET
+          sed -i 's/android:label=".*"/android:label="NỔI DẬY"/' android/app/src/main/AndroidManifest.xml
+          sed -i 's/<application/<uses-permission android:name="android.intent.permission.INTERNET"\/>\n    <application/' android/app/src/main/AndroidManifest.xml
+
+          # 4. Ghi đè code lib/main.dart từ repo
+          cp ../lib/main.dart lib/main.dart
+
+          # 5. Build file APK
           flutter build apk --release --no-tree-shake-icons
 
       - name: Upload Artifact
