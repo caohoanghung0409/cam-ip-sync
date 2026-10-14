@@ -23,114 +23,91 @@ jobs:
           channel: 'stable'
           flutter-version: '3.24.3'
 
-      - name: Initialize App & Setup TSMH Luxury Icon
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Initialize App & Setup TSMH Icon Cleanly
         run: |
-          # 1. Khởi tạo project Flutter chuẩn
+          pip install pillow
+
+          # 1. Khởi tạo project Flutter
           flutter create noiday --org com.noiday --platforms android
           cd noiday
-          flutter pub add http
 
-          # 2. Đặt tên hiển thị app là NỔI DẬY và cấp quyền INTERNET
+          # 2. Thêm thư viện cần thiết
+          flutter pub add http
+          flutter pub add --dev flutter_launcher_icons
+
+          # 3. Đổi tên ứng dụng thành NỔI DẬY và cấp quyền mạng
           sed -i 's/android:label=".*"/android:label="NỔI DẬY"/' android/app/src/main/AndroidManifest.xml
           sed -i 's/<application/<uses-permission android:name="android.intent.permission.INTERNET"\/>\n    <application/' android/app/src/main/AndroidManifest.xml
 
-          # 3. Tạo nền đỏ Ruby dạng Vector chuẩn Android
-          cat << 'EOF' > android/app/src/main/res/drawable/ic_launcher_background.xml
-          <vector xmlns:android="http://schemas.android.com/apk/res/android"
-              android:width="108dp"
-              android:height="108dp"
-              android:viewportWidth="108"
-              android:viewportHeight="108">
-              <path
-                  android:fillColor="#8B0000"
-                  android:pathData="M0,0h108v108h-108z"/>
-          </vector>
+          # 4. Tạo ảnh nguồn icon TSMH chất lượng cao 512x512 (Đỏ Ruby & Vàng Gold)
+          python3 -c "
+          from PIL import Image, ImageDraw
+          import os
+
+          sz = 512
+          img = Image.new('RGBA', (sz, sz), color=(0, 0, 0, 0))
+          draw = ImageDraw.Draw(img)
+
+          # Nền bo góc Đỏ Ruby
+          corner = 110
+          draw.rounded_rectangle([(0, 0), (sz - 1, sz - 1)], radius=corner, fill=(139, 0, 0, 255))
+
+          # Khung viền kim cương đôi mạ vàng Gold 24K
+          draw.polygon([(256, 40), (472, 256), (256, 472), (40, 256)], outline=(255, 215, 0, 255), width=8)
+          draw.polygon([(256, 56), (456, 256), (256, 456), (56, 256)], outline=(255, 248, 220, 200), width=4)
+
+          # 4 đỉnh ngọc vàng
+          for pt in [(256, 24), (256, 488), (24, 256), (488, 256)]:
+              draw.ellipse([(pt[0]-10, pt[1]-10), (pt[0]+10, pt[1]+10)], fill=(255, 215, 0, 255))
+
+          # Chữ T (Góc trên - trái)
+          draw.line([(150, 150), (220, 150)], fill=(255, 215, 0, 255), width=14)
+          draw.line([(185, 150), (185, 220)], fill=(255, 215, 0, 255), width=14)
+
+          # Chữ S (Góc trên - phải)
+          draw.arc([(300, 140), (360, 185)], start=160, end=380, fill=(255, 255, 255, 255), width=14)
+          draw.arc([(300, 175), (360, 225)], start=-20, end=200, fill=(255, 255, 255, 255), width=14)
+
+          # Chữ M (Góc dưới - trái)
+          draw.line([(150, 360), (150, 290)], fill=(255, 255, 255, 255), width=14)
+          draw.line([(150, 290), (185, 335)], fill=(255, 255, 255, 255), width=14)
+          draw.line([(185, 335), (220, 290)], fill=(255, 255, 255, 255), width=14)
+          draw.line([(220, 290), (220, 360)], fill=(255, 255, 255, 255), width=14)
+
+          # Chữ H (Góc dưới - phải)
+          draw.line([(300, 290), (300, 360)], fill=(255, 215, 0, 255), width=14)
+          draw.line([(360, 290), (360, 360)], fill=(255, 215, 0, 255), width=14)
+          draw.line([(300, 325), (360, 325)], fill=(255, 215, 0, 255), width=14)
+
+          # Đường chỉ chia chữ thập vàng
+          draw.line([(256, 170), (256, 342)], fill=(255, 215, 0, 140), width=4)
+          draw.line([(170, 256), (342, 256)], fill=(255, 215, 0, 140), width=4)
+
+          os.makedirs('assets', exist_ok=True)
+          img.save('assets/icon.png')
+          print('Created TSMH PNG icon successfully!')
+          "
+
+          # 5. Cấu hình flutter_launcher_icons để tự động sinh icon tương thích hoàn toàn
+          cat << 'EOF' >> pubspec.yaml
+
+          flutter_launcher_icons:
+            android: "launcher_icon"
+            image_path: "assets/icon.png"
+            min_sdk_android: 21
           EOF
 
-          # 4. Tạo đồ họa Vector TSMH mạ vàng Gold 24K (đã fix 100% cú pháp)
-          cat << 'EOF' > android/app/src/main/res/drawable/ic_launcher_foreground.xml
-          <vector xmlns:android="http://schemas.android.com/apk/res/android"
-              android:width="108dp"
-              android:height="108dp"
-              android:viewportWidth="108"
-              android:viewportHeight="108">
-              
-              <!-- Khung viền kim cương đôi góc bo sang trọng -->
-              <path
-                  android:fillColor="#00000000"
-                  android:strokeColor="#FFD700"
-                  android:strokeWidth="1.8"
-                  android:pathData="M54,23 L85,54 L54,85 L23,54 Z"/>
-              <path
-                  android:fillColor="#00000000"
-                  android:strokeColor="#FFF8DC"
-                  android:strokeWidth="0.8"
-                  android:pathData="M54,26 L82,54 L54,82 L26,54 Z"/>
+          flutter pub run flutter_launcher_icons
 
-              <!-- 4 đỉnh ngọc hoàng gia -->
-              <path android:fillColor="#FFD700" android:pathData="M54,20 L56,23 L54,26 L52,23 Z"/>
-              <path android:fillColor="#FFD700" android:pathData="M54,82 L56,85 L54,88 L52,85 Z"/>
-              <path android:fillColor="#FFD700" android:pathData="M20,54 L23,56 L26,54 L23,52 Z"/>
-              <path android:fillColor="#FFD700" android:pathData="M82,54 L85,56 L88,54 L85,52 Z"/>
-
-              <!-- Chữ T (Góc trên - trái) -->
-              <path
-                  android:fillColor="#00000000"
-                  android:strokeColor="#FFD700"
-                  android:strokeWidth="2.2"
-                  android:strokeCap="round"
-                  android:pathData="M32,39 L46,39 M39,39 L39,52"/>
-
-              <!-- Chữ S (Góc trên - phải) -->
-              <path
-                  android:fillColor="#00000000"
-                  android:strokeColor="#FFFFFF"
-                  android:strokeWidth="2.2"
-                  android:strokeCap="round"
-                  android:pathData="M76,40 C73,38 67,38 67,42 C67,46 76,45 76,49 C76,53 70,53 67,51"/>
-
-              <!-- Chữ M (Góc dưới - trái) -->
-              <path
-                  android:fillColor="#00000000"
-                  android:strokeColor="#FFFFFF"
-                  android:strokeWidth="2.2"
-                  android:strokeCap="round"
-                  android:strokeJoin="round"
-                  android:pathData="M33,69 L33,57 L38.5,64 L44,57 L44,69"/>
-
-              <!-- Chữ H (Góc dưới - phải) -->
-              <path
-                  android:fillColor="#00000000"
-                  android:strokeColor="#FFD700"
-                  android:strokeWidth="2.2"
-                  android:strokeCap="round"
-                  android:pathData="M66,57 L66,69 M77,57 L77,69 M66,63 L77,63"/>
-
-              <!-- Đường chỉ phân tách trung tâm cách điệu mạ vàng -->
-              <path
-                  android:fillColor="#00000000"
-                  android:strokeColor="#FFD700"
-                  android:strokeWidth="0.8"
-                  android:pathData="M54,36 L54,72 M36,54 L72,54"/>
-          </vector>
-          EOF
-
-          # 5. Cấu hình cả Icon thường và Icon tròn cho Android
-          mkdir -p android/app/src/main/res/mipmap-anydpi-v26
-          cat << 'EOF' > android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
-          <?xml version="1.0" encoding="utf-8"?>
-          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-              <background android:drawable="@drawable/ic_launcher_background"/>
-              <foreground android:drawable="@drawable/ic_launcher_foreground"/>
-          </adaptive-icon>
-          EOF
-
-          cp android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
-
-          # 6. Sao chép mã nguồn main.dart vào project
+          # 6. Chép file main.dart từ repo
           cp ../lib/main.dart lib/main.dart
 
-          # 7. Biên dịch APK Release
+          # 7. Build file APK chuẩn
           flutter build apk --release --no-tree-shake-icons
 
       - name: Upload Artifact
