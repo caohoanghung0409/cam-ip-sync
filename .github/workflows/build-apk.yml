@@ -12,7 +12,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '17'
@@ -23,46 +23,26 @@ jobs:
           channel: 'stable'
           flutter-version: '3.24.3'
 
-      - name: Initialize App and Setup Vector Icon
+      - name: Initialize and Build App
         run: |
-          # 1. Tạo project Flutter chuẩn
+          # 1. Tạo project chuẩn
           flutter create noiday --org com.noiday --platforms android
           cd noiday
+
+          # 2. Thêm thư viện cần thiết
           flutter pub add http
 
-          # 2. Đổi tên ứng dụng thành NỔI DẬY và cấp quyền INTERNET
+          # 3. Đặt tên hiển thị app là NỔI DẬY và cấp quyền INTERNET
           sed -i 's/android:label=".*"/android:label="NỔI DẬY"/' android/app/src/main/AndroidManifest.xml
           sed -i 's/<application/<uses-permission android:name="android.intent.permission.INTERNET"\/>\n    <application/' android/app/src/main/AndroidManifest.xml
 
-          # 3. Tạo icon Vector biểu tượng NỔI DẬY nền đỏ viền vàng chuẩn Android
-          cat << 'EOF' > android/app/src/main/res/drawable/ic_launcher_foreground.xml
-          <vector xmlns:android="http://schemas.android.com/apk/res/android"
-              android:width="108dp"
-              android:height="108dp"
-              android:viewportWidth="108"
-              android:viewportHeight="108">
-              <!-- Vòng hào quang vàng -->
-              <path
-                  android:fillColor="#FFD700"
-                  android:pathData="M54,18 L64,36 L84,39 L69,54 L73,74 L54,64 L35,74 L39,54 L24,39 L44,36 Z"/>
-              <!-- Tia chớp nổi dậy trung tâm -->
-              <path
-                  android:fillColor="#FFFFFF"
-                  android:pathData="M56,26 L42,50 L52,50 L46,76 L66,48 L54,48 Z"/>
-          </vector>
-          EOF
-
-          cat << 'EOF' > android/app/src/main/res/values/ic_launcher_background.xml
-          <?xml version="1.0" encoding="utf-8"?>
-          <resources>
-              <color name="ic_launcher_background">#C62828</color>
-          </resources>
-          EOF
-
-          # 4. Chép file mã nguồn lib/main.dart từ repo
+          # 4. Sao chép file main.dart vào project
           cp ../lib/main.dart lib/main.dart
 
-          # 5. Biên dịch APK
+          # 5. Kiểm tra cú pháp trước khi build
+          flutter analyze || true
+
+          # 6. Build file APK phát hành
           flutter build apk --release --no-tree-shake-icons
 
       - name: Upload Artifact
