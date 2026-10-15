@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cài đặt App NỔI DẬY</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0f172a;
+      color: #ffffff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+      box-sizing: border-box;
+      text-align: center;
+    }
+    .card {
+      background: #1e293b;
+      padding: 32px 24px;
+      border-radius: 24px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      max-width: 360px;
+      width: 100%;
+      border: 1px solid rgba(255,215,0,0.25);
+    }
+    .logo {
+      width: 88px;
+      height: 88px;
+      background: #8b0000;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px;
+      border: 2px solid #ffd700;
+      box-shadow: 0 4px 15px rgba(255,215,0,0.3);
+    }
+    .logo-text {
+      color: #ffd700;
+      font-weight: 900;
+      font-size: 24px;
+      letter-spacing: 2px;
+    }
+    h1 {
+      margin: 0 0 6px;
+      font-size: 22px;
+      font-weight: 800;
+      color: #f8fafc;
+    }
+    p {
+      color: #94a3b8;
+      font-size: 13px;
+      margin: 0 0 24px;
+    }
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      padding: 14px 0;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 700;
+      text-decoration: none;
+      margin-bottom: 12px;
+      box-sizing: border-box;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    .btn:active {
+      transform: scale(0.98);
+      opacity: 0.9;
+    }
+    .btn-android {
+      background: #00796b;
+      color: #ffffff;
+      box-shadow: 0 4px 12px rgba(0,121,107,0.4);
+    }
+    .btn-ios {
+      background: #e11d48;
+      color: #ffffff;
+      box-shadow: 0 4px 12px rgba(225,29,72,0.4);
+    }
+    .badge {
+      font-size: 11px;
+      background: rgba(255,255,255,0.2);
+      padding: 2px 8px;
+      border-radius: 20px;
+      margin-left: 8px;
+    }
+    .note {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-top: 18px;
+      line-height: 1.5;
+      text-align: left;
+      background: rgba(255,255,255,0.05);
+      padding: 12px;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <div class="logo">
+      <span class="logo-text">TSMH</span>
+    </div>
+    <h1>NỔI DẬY</h1>
+    <p>Hệ thống theo dõi lịch trực thứ Bảy</p>
+
+    <!-- Tự động link tới file APK mới nhất trên GitHub Release -->
+    <a href="../../releases/latest/download/Noi-Day-App.apk" class="btn btn-android" id="btnAndroid">
+      <span>Cài đặt cho Android</span>
+      <span class="badge">.APK</span>
+    </a>
+
+    <!-- Link dành cho iOS qua OTA -->
+    <a href="#" class="btn btn-ios" id="btnIos">
+      <span>Cài đặt cho iOS</span>
+      <span class="badge">iPhone</span>
+    </a>
+
+    <div class="note" id="instruction">
+      💡 <b>Hướng dẫn cài đặt:</b><br>
+      • <b>Android:</b> Bấm nút tải về và chọn "Vẫn cài đặt".<br>
+      • <b>iOS:</b> Sau khi tải, vào <i>Cài đặt > Cài đặt chung > Quản lý VPN & Thiết bị</i> và chọn <i>Tin cậy</i>.
+    </div>
+  </div>
+
+  <script>
+    // Nhận diện dòng máy: Ưu tiên đưa nút tải của hệ điều hành đó lên đầu
+    const ua = navigator.userAgent || navigator.vendor || window.opera;
+    const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+
+    const btnAndroid = document.getElementById('btnAndroid');
+    const btnIos = document.getElementById('btnIos');
+
+    if (isIOS) {
+      btnIos.style.order = "-1";
+      btnIos.style.border = "2px solid #ffd700";
+    } else {
+      btnAndroid.style.order = "-1";
+      btnAndroid.style.border = "2px solid #ffd700";
+    }
+  </script>
+</body>
+</html>
