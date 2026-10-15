@@ -217,7 +217,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     // Âm lịch
     LunarDate lunar = LunarDate.fromSolar(date.day, date.month, date.year);
     if (lunar.month == 12 && (lunar.day == 29 || lunar.day == 30)) {
-      return "Nghỉ Tết Nguyên Đán (Tất Niên)";
+      return "Nghỉ Tết Nguyên Đán";
     }
     if (lunar.month == 1 && (lunar.day >= 1 && lunar.day <= 5)) {
       return "Tết Nguyên Đán (Mùng ${lunar.day})";
