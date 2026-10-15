@@ -68,7 +68,7 @@ class LunarDate {
     c1 += 0.0104 * sin(2 * f * dr) - 0.0051 * sin((m + mpr) * dr);
     c1 -= 0.0074 * sin((m - mpr) * dr) + 0.0004 * sin((2 * f + m) * dr);
     c1 -= 0.0004 * sin((2 * f - m) * dr) - 0.0006 * sin((2 * f + mpr) * dr);
-    c1 += 0.0010 * sin((2 * f - mpr) * dr) + 0.0005 * sin((2 * mpr + m) * dr);
+    c1 += 0.0104 * sin((2 * f - mpr) * dr) + 0.0005 * sin((2 * mpr + m) * dr);
     return jde + c1;
   }
 
@@ -157,7 +157,7 @@ class MainDutyScreen extends StatefulWidget {
 
 class _MainDutyScreenState extends State<MainDutyScreen> {
   // Thứ tự 4 người: SÂM -> MINH -> TRINH -> HƯNG
-  final List<Member> baseMembers = const [
+  static final List<Member> baseMembers = const [
     Member(name: "NGUYỄN THỊ SÂM", shortName: "SÂM", themeColor: Colors.deepOrange),
     Member(name: "NGUYỄN NGỌC HOÀNG MINH", shortName: "MINH", themeColor: Colors.blue),
     Member(name: "LÂM TỐ TRINH", shortName: "TRINH", themeColor: Colors.purple),
@@ -167,10 +167,16 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
   // Mốc xuất phát gốc: Thứ Bảy 17/10/2026 là ca của SÂM (vị trí 0)
   static final DateTime baseSaturday = DateTime(2026, 10, 17);
 
+  // Link Google Sheets của bạn
+  static const String sheetId = "12LwsnfhdvnT9WqZAiXy6lrA0GrEFpdA1IUXp5YfHf0c";
+
+  // Bộ nhớ tĩnh lưu ngày nghỉ từ Sheets (Key: "YYYY-MM-DD", Value: "Lý do")
+  static Map<String, String> customHolidays = {};
+
   DateTime _currentDate = DateTime.now();
   bool _isLoading = false;
 
-  // Danh sách các ngày lễ cố định (đã tích hợp sẵn 24/11)
+  // Danh sách các ngày lễ cố định (Dương lịch & 24/11)
   static final Map<String, String> holidaysMap = {
     "1-1": "Tết Dương Lịch",
     "30-4": "Giải Phóng Miền Nam",
@@ -184,12 +190,77 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchInternetTime();
+    _initData();
+  }
+
+  Future<void> _initData() async {
+    setState(() => _isLoading = true);
+    await Future.wait([
+      _fetchInternetTime(),
+      _fetchGoogleSheetHolidays(),
+    ]);
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  // Tải dữ liệu ngày nghỉ bù / hoán đổi từ Google Sheets
+  Future<void> _fetchGoogleSheetHolidays() async {
+    final String url = "https://docs.google.com/spreadsheets/d/$sheetId/gviz/tq?tqx=out:csv";
+    try {
+      final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 4));
+      if (res.statusCode == 200) {
+        final lines = const LineSplitter().convert(res.body);
+        Map<String, String> parsed = {};
+
+        // Bỏ qua dòng tiêu đề A1/B1, quét từ dòng thứ 2
+        for (int i = 1; i < lines.length; i++) {
+          final row = lines[i].replaceAll('"', '').split(',');
+          if (row.isNotEmpty && row[0].trim().isNotEmpty) {
+            String rawDate = row[0].trim();
+            String reason = row.length > 1 && row[1].trim().isNotEmpty
+                ? row[1].trim()
+                : "Nghỉ công ty";
+
+            String formattedDate = _normalizeDate(rawDate);
+            if (formattedDate.isNotEmpty) {
+              parsed[formattedDate] = reason;
+            }
+          }
+        }
+        customHolidays = parsed;
+      }
+    } catch (e) {
+      debugPrint("Lỗi tải Google Sheets: $e");
+    }
+  }
+
+  // Chuẩn hóa định dạng ngày từ DD/MM/YYYY hoặc YYYY-MM-DD sang YYYY-MM-DD
+  static String _normalizeDate(String input) {
+    try {
+      if (input.contains('/')) {
+        final parts = input.split('/');
+        if (parts.length == 3) {
+          String d = parts[0].trim().padLeft(2, '0');
+          String m = parts[1].trim().padLeft(2, '0');
+          String y = parts[2].trim();
+          return "$y-$m-$d";
+        }
+      } else if (input.contains('-')) {
+        final parts = input.split('-');
+        if (parts.length == 3) {
+          String y = parts[0].trim();
+          String m = parts[1].trim().padLeft(2, '0');
+          String d = parts[2].trim().padLeft(2, '0');
+          return "$y-$m-$d";
+        }
+      }
+    } catch (_) {}
+    return "";
   }
 
   // Ưu tiên 1: Internet time | Ưu tiên 2: Giờ điện thoại
   Future<void> _fetchInternetTime() async {
-    setState(() => _isLoading = true);
     try {
       final res = await http
           .get(Uri.parse('https://worldtimeapi.org/api/timezone/Asia/Ho_Chi_Minh'))
@@ -201,20 +272,23 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     } catch (_) {
       _currentDate = DateTime.now();
     }
-
-    if (mounted) {
-      setState(() => _isLoading = false);
-    }
   }
 
-  // Nhận diện ngày lễ: Dương lịch, 24/11 và Âm lịch Việt Nam
+  // Nhận diện ngày lễ: 1. Google Sheets -> 2. Dương lịch/24-11 -> 3. Âm lịch
   static String? checkHoliday(DateTime date) {
+    // 1. Kiểm tra ngày nghỉ riêng từ Google Sheets trước
+    String dateKey = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+    if (customHolidays.containsKey(dateKey)) {
+      return customHolidays[dateKey];
+    }
+
+    // 2. Dương lịch & 24/11
     String key = "${date.day}-${date.month}";
     if (holidaysMap.containsKey(key)) {
       return holidaysMap[key];
     }
 
-    // Âm lịch
+    // 3. Âm lịch Việt Nam
     LunarDate lunar = LunarDate.fromSolar(date.day, date.month, date.year);
     if (lunar.month == 12 && (lunar.day == 29 || lunar.day == 30)) {
       return "Nghỉ Tết Nguyên Đán";
@@ -316,11 +390,11 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
         centerTitle: true,
         actions: [
           IconButton(
-            tooltip: "Làm mới",
+            tooltip: "Đồng bộ & Làm mới",
             icon: _isLoading
                 ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                 : const Icon(Icons.refresh, color: Colors.white),
-            onPressed: _fetchInternetTime,
+            onPressed: _initData,
           )
         ],
       ),
@@ -378,7 +452,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                   const SizedBox(height: 4),
                   Text(
                     currentDuty.isHoliday
-                        ? "Trùng dịp lễ: ${currentDuty.holidayName} (Được nghỉ)"
+                        ? "Trùng dịp nghỉ: ${currentDuty.holidayName} (Được nghỉ)"
                         : "Đến lượt cày cuốc, chuẩn bị tinh thần!",
                     style: const TextStyle(color: Colors.white70, fontSize: 12),
                   ),
@@ -421,7 +495,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                               MaterialPageRoute(
                                 builder: (context) => YearRangeMemberDetailScreen(
                                   member: m,
-                                  members: baseMembers,
+                                  members: _MainDutyScreenState.baseMembers,
                                   initialYear: _currentDate.year >= 2026 && _currentDate.year <= 2050
                                       ? _currentDate.year
                                       : 2026,
