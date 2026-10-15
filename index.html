@@ -113,27 +113,27 @@
     <h1>NỔI DẬY</h1>
     <p>Hệ thống theo dõi lịch trực thứ Bảy</p>
 
-    <!-- Tự động link tới file APK mới nhất trên GitHub Release -->
-    <a href="../../releases/latest/download/Noi-Day-App.apk" class="btn btn-android" id="btnAndroid">
+    <!-- Nút Android: Tự động tải file APK từ bản Release mới nhất -->
+    <a href="https://github.com/caohoanghung0409/cam-ip-sync/releases/latest/download/Noi-Day-App.apk" class="btn btn-android" id="btnAndroid">
       <span>Cài đặt cho Android</span>
       <span class="badge">.APK</span>
     </a>
 
-    <!-- Link dành cho iOS qua OTA -->
-    <a href="#" class="btn btn-ios" id="btnIos">
+    <!-- Nút iOS: Kích hoạt cài đặt trực tiếp qua InstallOnAir -->
+    <a href="https://ioair.link/9dpncx" class="btn btn-ios" id="btnIos">
       <span>Cài đặt cho iOS</span>
       <span class="badge">iPhone</span>
     </a>
 
-    <div class="note" id="instruction">
+    <div class="note">
       💡 <b>Hướng dẫn cài đặt:</b><br>
-      • <b>Android:</b> Bấm nút tải về và chọn "Vẫn cài đặt".<br>
-      • <b>iOS:</b> Sau khi tải, vào <i>Cài đặt > Cài đặt chung > Quản lý VPN & Thiết bị</i> và chọn <i>Tin cậy</i>.
+      • <b>Android:</b> Bấm nút tải về và chọn <i>"Vẫn tải xuống"</i> hoặc <i>"Vẫn cài đặt"</i>.<br>
+      • <b>iOS (iPhone):</b> Mở bằng Safari, sau khi cài đặt hãy vào <i>Cài đặt > Cài đặt chung > Quản lý VPN & Thiết bị</i> và chọn <i>Tin cậy (Trust)</i>.
     </div>
   </div>
 
   <script>
-    // Nhận diện dòng máy: Ưu tiên đưa nút tải của hệ điều hành đó lên đầu
+    // Tự động nhận diện thiết bị để đưa nút cài đặt tương ứng lên trên cùng
     const ua = navigator.userAgent || navigator.vendor || window.opera;
     const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
 
