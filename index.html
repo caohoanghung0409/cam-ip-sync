@@ -106,7 +106,7 @@
       border-radius: 8px;
     }
 
-    /* Màn hình hướng dẫn phụ (chỉ bật khi Zalo chặn hẳn script) */
+    /* Màn hình hướng dẫn phụ khi mở trong Zalo */
     #overlayGuide {
       display: none;
       position: fixed;
@@ -132,15 +132,16 @@
 </head>
 <body>
 
-  <!-- Khung chỉ dẫn góc trên nếu trình duyệt Zalo phiên bản mới chặn hoàn toàn Intent -->
+  <!-- Khung chỉ dẫn nếu người dùng bấm từ trong Zalo -->
   <div id="overlayGuide" onclick="document.getElementById('overlayGuide').style.display='none'">
     <div class="arrow-top">↗️</div>
     <div style="margin-top: 70px; text-align: right; padding-right: 10px;">
       <h3 style="color: #ffd700; margin-bottom: 8px;">Nhấn vào đây để tiếp tục</h3>
       <p style="font-size: 14px; line-height: 1.6;">
         Bấm dấu <b>3 chấm (...)</b> ở góc trên bên phải<br>
-        Chọn <b>"Mở bằng trình duyệt"</b> để tải nhé!
+        Chọn <b>"Mở bằng trình duyệt"</b> (Chrome / Safari) để cài đặt nhé!
       </p>
+      <div style="font-size: 12px; color: #94a3b8; margin-top: 12px;">(Chạm màn hình để đóng)</div>
     </div>
   </div>
 
@@ -151,22 +152,28 @@
     <h1>NỔI DẬY</h1>
     <p>Lịch trực thứ Bảy (2026 - 2050)</p>
 
-    <!-- Nút Android: Tự kích hoạt mở Google Chrome ngoài Zalo -->
-    <button class="btn btn-android" id="btnAndroid" onclick="launchAndroidDownload()">
+    <!-- Nút Android -->
+    <a href="https://github.com/caohoanghung0409/cam-ip-sync/releases/latest/download/Noi-Day-App.apk" 
+       class="btn btn-android" 
+       id="btnAndroid" 
+       onclick="handleAndroidTap(event)">
       <span>Cài đặt cho Android</span>
       <span class="badge">.APK</span>
-    </button>
+    </a>
 
-    <!-- Nút iOS: Tự kích hoạt lệnh cài đặt Apple / Safari -->
-    <button class="btn btn-ios" id="btnIos" onclick="launchIosInstall()">
+    <!-- Nút iOS: Trỏ trực tiếp link InstallOnAir để Safari mở chuẩn xác -->
+    <a href="https://ioair.link/qvc8uf" 
+       class="btn btn-ios" 
+       id="btnIos" 
+       onclick="handleIosTap(event)">
       <span>Cài đặt cho iOS</span>
       <span class="badge">iPhone</span>
-    </button>
+    </a>
 
     <div class="note">
       💡 <b>Lưu ý:</b><br>
-      • <b>Android:</b> Hệ thống tự mở Chrome để tải file APK về máy.<br>
-      • <b>iOS (iPhone):</b> Bấm Cài đặt, sau đó vào <i>Cài đặt > Cài đặt chung > Quản lý VPN & Thiết bị</i> chọn <i>Tin cậy</i>.
+      • <b>Android:</b> Chọn <i>"Vẫn tải xuống"</i> khi trình duyệt cảnh báo tệp APK.<br>
+      • <b>iOS (iPhone):</b> Bắt buộc mở link bằng <b>Safari</b>. Bấm Cài đặt, sau đó vào <i>Cài đặt > Cài đặt chung > Quản lý VPN & Thiết bị</i> chọn <i>Tin cậy</i>.
     </div>
   </div>
 
@@ -174,9 +181,6 @@
     const ua = navigator.userAgent || navigator.vendor || window.opera;
     const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
     const isZalo = ua.indexOf("Zalo") > -1 || ua.indexOf("FBAN") > -1 || ua.indexOf("FBAV") > -1;
-
-    const apkUrl = "https://github.com/caohoanghung0409/cam-ip-sync/releases/latest/download/Noi-Day-App.apk";
-    const iosOtaUrl = "itms-services://?action=download-manifest&url=https://installonair.com/storage/manifests/qvc8uf.plist";
 
     // Tự đưa nút phù hợp lên đầu
     const btnAndroid = document.getElementById('btnAndroid');
@@ -189,41 +193,18 @@
       btnAndroid.style.border = "2px solid #ffd700";
     }
 
-    // Xử lý khi bấm nút Android: Bắt Zalo bung ra Google Chrome
-    function launchAndroidDownload() {
+    function handleAndroidTap(e) {
       if (isZalo && !isIOS) {
-        // Gọi Android Intent ép mở sang Chrome
-        const chromeIntent = "intent://github.com/caohoanghung0409/cam-ip-sync/releases/latest/download/Noi-Day-App.apk#Intent;scheme=https;package=com.android.chrome;end;";
-        window.location.href = chromeIntent;
-
-        // Dự phòng: Nếu máy không có sẵn package chrome hoặc Zalo chặn Intent
-        setTimeout(() => {
-          window.location.href = apkUrl;
-        }, 1500);
-      } else {
-        // Nếu đã ở trong Chrome/trình duyệt ngoài thì tải luôn
-        window.location.href = apkUrl;
+        // Mở trong Zalo thì hiện chỉ dẫn mở Chrome
+        document.getElementById('overlayGuide').style.display = 'block';
       }
     }
 
-    // Xử lý khi bấm nút iOS: Kích hoạt cài đặt qua Apple Service
-    function launchIosInstall() {
-      if (!isIOS) {
-        alert("Nút này chỉ dành cho iPhone/iPad!");
-        return;
-      }
-
+    function handleIosTap(e) {
       if (isZalo) {
-        // Kích hoạt giao thức OTA trực tiếp để iOS hỏi mở ngoài
-        window.location.href = iosOtaUrl;
-
-        // Nếu Zalo khóa cứng giao thức itms-services thì hiện mũi tên góc phải chỉ dẫn mở Safari
-        setTimeout(() => {
-          document.getElementById('overlayGuide').style.display = 'block';
-        }, 1200);
-      } else {
-        // Đang ở trong Safari thì kích hoạt cài đặt ngay lập tức
-        window.location.href = iosOtaUrl;
+        e.preventDefault();
+        // Mở trong Zalo thì chặn và hiện hướng dẫn mở bằng Safari
+        document.getElementById('overlayGuide').style.display = 'block';
       }
     }
   </script>
