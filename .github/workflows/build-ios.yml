@@ -1,0 +1,126 @@
+name: Build iOS IPA
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-ios:
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          flutter-version: '3.24.3'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Initialize App & Setup iOS
+        run: |
+          pip install pillow
+
+          # 1. Tạo project chuẩn hỗ trợ cả iOS và Android
+          flutter create noiday --org com.noiday --platforms ios,android
+          cd noiday
+
+          flutter pub add http
+          flutter pub add --dev flutter_launcher_icons
+
+          # 2. Đổi tên hiển thị ngoài màn hình iPhone thành NỔI DẬY
+          sed -i '' 's/<key>CFBundleName<\/key>.*<string>.*<\/string>/<key>CFBundleName<\/key><string>NỔI DẬY<\/string>/' ios/Runner/Info.plist
+          sed -i '' 's/<key>CFBundleDisplayName<\/key>.*<string>.*<\/string>/<key>CFBundleDisplayName<\/key><string>NỔI DẬY<\/string>/' ios/Runner/Info.plist 2>/dev/null || true
+
+          # 3. Tạo icon TSMH sắc nét chuẩn cho cả iOS và Android (iOS không hỗ trợ nền trong suốt nên góc bo sẽ để Apple tự bo)
+          python3 -c "
+          from PIL import Image, ImageDraw
+          import os
+
+          sz = 1024
+          img = Image.new('RGB', (sz, sz), color=(139, 0, 0))
+          draw = ImageDraw.Draw(img)
+
+          # Khung kim cương mạ vàng Gold 24K
+          draw.polygon([(512, 80), (944, 512), (512, 944), (80, 512)], outline=(255, 215, 0), width=16)
+          draw.polygon([(512, 116), (908, 512), (512, 908), (116, 512)], outline=(255, 248, 220), width=8)
+
+          # 4 đỉnh ngọc
+          for pt in [(512, 48), (512, 976), (48, 512), (976, 512)]:
+              draw.ellipse([(pt[0]-20, pt[1]-20), (pt[0]+20, pt[1]+20)], fill=(255, 215, 0))
+
+          # Trục phân cách chữ thập
+          draw.line([(512, 320), (512, 704)], fill=(255, 215, 0), width=8)
+          draw.line([(320, 512), (704, 512)], fill=(255, 215, 0), width=8)
+
+          # Chữ T (Vàng Gold)
+          draw.line([(290, 300), (450, 300)], fill=(255, 215, 0), width=30)
+          draw.line([(370, 300), (370, 450)], fill=(255, 215, 0), width=30)
+
+          # Chữ S (Trắng Bạc Silver)
+          s_pts = [
+              (724, 304), (644, 288), (596, 324),
+              (600, 370), (660, 400), (724, 428),
+              (728, 472), (672, 508), (592, 492)
+          ]
+          for i in range(len(s_pts) - 1):
+              draw.line([s_pts[i], s_pts[i+1]], fill=(255, 255, 255), width=30)
+          for pt in s_pts:
+              draw.ellipse([(pt[0]-14, pt[1]-14), (pt[0]+14, pt[1]+14)], fill=(255, 255, 255))
+
+          # Chữ M (Trắng Bạc Silver)
+          draw.line([(290, 724), (290, 580)], fill=(255, 255, 255), width=30)
+          draw.line([(290, 580), (370, 670)], fill=(255, 255, 255), width=30)
+          draw.line([(370, 670), (450, 580)], fill=(255, 255, 255), width=30)
+          draw.line([(450, 580), (450, 724)], fill=(255, 255, 255), width=30)
+
+          # Chữ H (Vàng Gold)
+          draw.line([(590, 580), (590, 724)], fill=(255, 215, 0), width=30)
+          draw.line([(730, 580), (730, 724)], fill=(255, 215, 0), width=30)
+          draw.line([(590, 652), (730, 652)], fill=(255, 215, 0), width=30)
+
+          os.makedirs('assets', exist_ok=True)
+          img.save('assets/icon_ios.png')
+          print('Successfully generated iOS TSMH icon!')
+          "
+
+          # 4. Cấu hình icon cho cả iOS và Android
+          cat << 'EOF' > flutter_launcher_icons.yaml
+          flutter_launcher_icons:
+            ios: true
+            android: true
+            image_path: "assets/icon_ios.png"
+            remove_alpha_ios: true
+          EOF
+
+          dart run flutter_launcher_icons
+
+          # 5. Chép file main.dart từ repo sang
+          cp ../lib/main.dart lib/main.dart
+
+          # 6. Build iOS Release dạng No-Codesign
+          flutter build ios --release --no-codesign
+
+          # 7. Đóng gói thành file .ipa chuẩn để cài qua Sideloadly / AltStore
+          cd build/ios/iphoneos
+          mkdir Payload
+          cp -r Runner.app Payload/
+          zip -r Noi-Day-App.ipa Payload
+          cd ../../..
+
+      - name: Upload iOS IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Noi-Day-iOS-IPA
+          path: noiday/build/ios/iphoneos/Noi-Day-App.ipa
