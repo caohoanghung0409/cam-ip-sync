@@ -3,6 +3,9 @@ name: Build Android APK
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -94,10 +97,8 @@ jobs:
 
           os.makedirs('assets', exist_ok=True)
           img.save('assets/icon.png')
-          print('Successfully generated sharp TSMH icon!')
           "
 
-          # Tạo file cấu hình riêng độc lập để tránh lỗi thụt lề YAML
           cat << 'EOF' > flutter_launcher_icons.yaml
           flutter_launcher_icons:
             android: "launcher_icon"
@@ -110,9 +111,13 @@ jobs:
           cp ../lib/main.dart lib/main.dart
 
           flutter build apk --release --no-tree-shake-icons
+          cp build/app/outputs/flutter-apk/app-release.apk ../Noi-Day-App.apk
 
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+      - name: Create or Update GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: Noi-Day-App
-          path: noiday/build/app/outputs/flutter-apk/app-release.apk
+          tag_name: latest
+          name: "Bản cập nhật mới nhất"
+          files: Noi-Day-App.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
