@@ -19,6 +19,30 @@
       box-sizing: border-box;
       text-align: center;
     }
+
+    /* Banner cảnh báo khi mở trong Zalo / FB */
+    #zaloAlert {
+      display: none;
+      background: #b91c1c;
+      color: #ffffff;
+      padding: 14px 18px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      max-width: 360px;
+      width: 100%;
+      box-sizing: border-box;
+      font-size: 13px;
+      line-height: 1.5;
+      text-align: left;
+      border: 1px solid #f87171;
+      box-shadow: 0 4px 15px rgba(185,28,28,0.4);
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.02); }
+    }
+
     .card {
       background: #1e293b;
       padding: 32px 24px;
@@ -70,6 +94,7 @@
       margin-bottom: 12px;
       box-sizing: border-box;
       transition: opacity 0.2s, transform 0.1s;
+      cursor: pointer;
     }
     .btn:active {
       transform: scale(0.98);
@@ -106,6 +131,12 @@
 </head>
 <body>
 
+  <!-- Cảnh báo nếu mở trong Zalo -->
+  <div id="zaloAlert">
+    👉 <b>Bạn đang mở trong Zalo:</b><br>
+    Vui lòng bấm dấu <b>3 chấm (...)</b> ở góc trên cùng bên phải màn hình ➔ chọn <b>"Mở bằng trình duyệt"</b> (hoặc <i>Mở trong Chrome / Safari</i>) để tải app về máy nhé!
+  </div>
+
   <div class="card">
     <div class="logo">
       <span class="logo-text">TSMH</span>
@@ -113,29 +144,39 @@
     <h1>NỔI DẬY</h1>
     <p>Hệ thống theo dõi lịch trực thứ Bảy</p>
 
-    <!-- Nút Android -->
-    <a href="https://github.com/caohoanghung0409/cam-ip-sync/releases/latest/download/Noi-Day-App.apk" class="btn btn-android" id="btnAndroid">
+    <!-- Nút Android: Hỗ trợ tự mở Chrome qua Intent nếu đang trong Zalo -->
+    <a href="https://github.com/caohoanghung0409/cam-ip-sync/releases/latest/download/Noi-Day-App.apk" 
+       class="btn btn-android" 
+       id="btnAndroid"
+       onclick="handleAndroidDownload(event)">
       <span>Cài đặt cho Android</span>
       <span class="badge">.APK</span>
     </a>
 
-    <!-- Nút iOS: Kích hoạt lệnh cài đặt hệ thống OTA trực tiếp -->
-    <a href="itms-services://?action=download-manifest&url=https://installonair.com/storage/manifests/9dpncx.plist" class="btn btn-ios" id="btnIos">
+    <!-- Nút iOS -->
+    <a href="https://ioair.link/9dpncx" class="btn btn-ios" id="btnIos">
       <span>Cài đặt cho iOS</span>
       <span class="badge">iPhone</span>
     </a>
 
     <div class="note">
-      💡 <b>Lưu ý khi cài đặt:</b><br>
+      💡 <b>Hướng dẫn cài đặt:</b><br>
       • <b>Android:</b> Bấm tải về và chọn <i>"Vẫn tải xuống"</i>.<br>
-      • <b>iOS (iPhone):</b> Mở bằng trình duyệt Safari, bấm <i>"Cài đặt"</i>. Khi tải xong vào <i>Cài đặt &gt; Cài đặt chung &gt; Quản lý VPN &amp; Thiết bị</i> bấm <i>Tin cậy (Trust)</i>.
+      • <b>iOS (iPhone):</b> Mở bằng Safari, sau khi cài hãy vào <i>Cài đặt > Cài đặt chung > Quản lý VPN & Thiết bị</i> chọn <i>Tin cậy</i>.
     </div>
   </div>
 
   <script>
     const ua = navigator.userAgent || navigator.vendor || window.opera;
     const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+    const isZalo = ua.indexOf("Zalo") > -1 || ua.indexOf("FBAN") > -1 || ua.indexOf("FBAV") > -1;
 
+    // 1. Phát hiện nếu mở trong Zalo thì hiện thông báo hướng dẫn
+    if (isZalo) {
+      document.getElementById('zaloAlert').style.display = "block";
+    }
+
+    // 2. Nhận diện thiết bị để đưa nút phù hợp lên đầu
     const btnAndroid = document.getElementById('btnAndroid');
     const btnIos = document.getElementById('btnIos');
 
@@ -145,6 +186,20 @@
     } else {
       btnAndroid.style.order = "-1";
       btnAndroid.style.border = "2px solid #ffd700";
+    }
+
+    // 3. Thủ thuật tự ép mở Chrome khi người dùng bấm nút trên Android từ Zalo
+    function handleAndroidDownload(e) {
+      const downloadUrl = "https://github.com/caohoanghung0409/cam-ip-sync/releases/latest/download/Noi-Day-App.apk";
+      if (isZalo && !isIOS) {
+        e.preventDefault();
+        // Ép Zalo mở sang Chrome bằng Android Intent
+        const intentUrl = "intent://github.com/caohoanghung0409/cam-ip-sync/releases/latest/download/Noi-Day-App.apk#Intent;scheme=https;package=com.android.chrome;end";
+        window.location.href = intentUrl;
+        setTimeout(() => {
+          window.location.href = downloadUrl;
+        }, 1000);
+      }
     }
   </script>
 </body>
