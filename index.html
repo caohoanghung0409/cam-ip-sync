@@ -15,63 +15,59 @@
       justify-content: center;
       min-height: 100vh;
       margin: 0;
-      padding: 20px;
+      padding: 16px;
       box-sizing: border-box;
       text-align: center;
     }
 
-    /* Banner cảnh báo khi mở trong Zalo / FB */
-    #zaloAlert {
+    /* Khung cảnh báo khi mở trong Zalo */
+    #zaloGuide {
       display: none;
-      background: #b91c1c;
+      background: #dc2626;
       color: #ffffff;
-      padding: 14px 18px;
-      border-radius: 12px;
-      margin-bottom: 20px;
-      max-width: 360px;
+      padding: 16px;
+      border-radius: 16px;
+      margin-bottom: 16px;
+      max-width: 380px;
       width: 100%;
       box-sizing: border-box;
+      text-align: left;
       font-size: 13px;
       line-height: 1.5;
-      text-align: left;
-      border: 1px solid #f87171;
-      box-shadow: 0 4px 15px rgba(185,28,28,0.4);
-      animation: pulse 1.5s infinite;
+      box-shadow: 0 4px 20px rgba(220, 38, 38, 0.4);
     }
-    @keyframes pulse {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.02); }
-    }
+    #zaloGuide b { color: #fef08a; }
 
     .card {
       background: #1e293b;
-      padding: 32px 24px;
+      padding: 28px 20px;
       border-radius: 24px;
       box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-      max-width: 360px;
+      max-width: 380px;
       width: 100%;
+      box-sizing: border-box;
       border: 1px solid rgba(255,215,0,0.25);
     }
     .logo {
-      width: 88px;
-      height: 88px;
+      width: 84px;
+      height: 84px;
       background: #8b0000;
       border-radius: 20px;
       display: flex;
       align-items: center;
       justify-content: center;
-      margin: 0 auto 16px;
+      margin: 0 auto 14px;
       border: 2px solid #ffd700;
       box-shadow: 0 4px 15px rgba(255,215,0,0.3);
     }
     .logo-text {
       color: #ffd700;
       font-weight: 900;
-      font-size: 24px;
+      font-size: 22px;
       letter-spacing: 2px;
     }
     h1 {
-      margin: 0 0 6px;
+      margin: 0 0 4px;
       font-size: 22px;
       font-weight: 800;
       color: #f8fafc;
@@ -79,7 +75,7 @@
     p {
       color: #94a3b8;
       font-size: 13px;
-      margin: 0 0 24px;
+      margin: 0 0 20px;
     }
     .btn {
       display: flex;
@@ -93,8 +89,8 @@
       text-decoration: none;
       margin-bottom: 12px;
       box-sizing: border-box;
-      transition: opacity 0.2s, transform 0.1s;
       cursor: pointer;
+      border: none;
     }
     .btn:active {
       transform: scale(0.98);
@@ -110,6 +106,13 @@
       color: #ffffff;
       box-shadow: 0 4px 12px rgba(225,29,72,0.4);
     }
+    .btn-copy {
+      background: #334155;
+      color: #f8fafc;
+      font-size: 13px;
+      padding: 10px 0;
+      margin-top: 4px;
+    }
     .badge {
       font-size: 11px;
       background: rgba(255,255,255,0.2);
@@ -120,7 +123,7 @@
     .note {
       font-size: 12px;
       color: #94a3b8;
-      margin-top: 18px;
+      margin-top: 16px;
       line-height: 1.5;
       text-align: left;
       background: rgba(255,255,255,0.05);
@@ -131,10 +134,10 @@
 </head>
 <body>
 
-  <!-- Cảnh báo nếu mở trong Zalo -->
-  <div id="zaloAlert">
-    👉 <b>Bạn đang mở trong Zalo:</b><br>
-    Vui lòng bấm dấu <b>3 chấm (...)</b> ở góc trên cùng bên phải màn hình ➔ chọn <b>"Mở bằng trình duyệt"</b> (hoặc <i>Mở trong Chrome / Safari</i>) để tải app về máy nhé!
+  <!-- Hướng dẫn bật ra ngoài nếu mở trong Zalo -->
+  <div id="zaloGuide">
+    ⚠️ <b>Zalo chặn tải file trực tiếp:</b><br>
+    Bấm dấu <b>3 chấm (...)</b> ở góc trên cùng bên phải màn hình ➔ Chọn <b>"Mở bằng trình duyệt"</b> (hoặc <i>Mở trong Chrome / Safari</i>) để tải và cài đặt bình thường nhé!
   </div>
 
   <div class="card">
@@ -142,27 +145,34 @@
       <span class="logo-text">TSMH</span>
     </div>
     <h1>NỔI DẬY</h1>
-    <p>Hệ thống theo dõi lịch trực thứ Bảy</p>
+    <p>Lịch trực thứ Bảy (2026 - 2050)</p>
 
-    <!-- Nút Android: Hỗ trợ tự mở Chrome qua Intent nếu đang trong Zalo -->
+    <!-- Nút Android -->
     <a href="https://github.com/caohoanghung0409/cam-ip-sync/releases/latest/download/Noi-Day-App.apk" 
        class="btn btn-android" 
        id="btnAndroid"
-       onclick="handleAndroidDownload(event)">
+       onclick="onAndroidClick(event)">
       <span>Cài đặt cho Android</span>
       <span class="badge">.APK</span>
     </a>
 
     <!-- Nút iOS -->
-    <a href="https://ioair.link/9dpncx" class="btn btn-ios" id="btnIos">
+    <a href="itms-services://?action=download-manifest&url=https://installonair.com/storage/manifests/9dpncx.plist" 
+       class="btn btn-ios" 
+       id="btnIos"
+       onclick="onIosClick(event)">
       <span>Cài đặt cho iOS</span>
       <span class="badge">iPhone</span>
     </a>
 
+    <button class="btn btn-copy" onclick="copyPageLink()">
+      📋 Sao chép link để dán vào Chrome / Safari
+    </button>
+
     <div class="note">
-      💡 <b>Hướng dẫn cài đặt:</b><br>
-      • <b>Android:</b> Bấm tải về và chọn <i>"Vẫn tải xuống"</i>.<br>
-      • <b>iOS (iPhone):</b> Mở bằng Safari, sau khi cài hãy vào <i>Cài đặt > Cài đặt chung > Quản lý VPN & Thiết bị</i> chọn <i>Tin cậy</i>.
+      💡 <b>Lưu ý:</b><br>
+      • <b>Android:</b> Chọn <i>"Vẫn tải xuống"</i> khi trình duyệt cảnh báo tệp APK.<br>
+      • <b>iOS (iPhone):</b> Bắt buộc mở bằng trình duyệt <b>Safari</b>. Sau khi cài xong, vào <i>Cài đặt > Cài đặt chung > Quản lý VPN & Thiết bị</i> để chọn <i>Tin cậy</i>.
     </div>
   </div>
 
@@ -171,15 +181,14 @@
     const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
     const isZalo = ua.indexOf("Zalo") > -1 || ua.indexOf("FBAN") > -1 || ua.indexOf("FBAV") > -1;
 
-    // 1. Phát hiện nếu mở trong Zalo thì hiện thông báo hướng dẫn
+    // Nếu người dùng đang mở bên trong Zalo
     if (isZalo) {
-      document.getElementById('zaloAlert').style.display = "block";
+      document.getElementById('zaloGuide').style.display = "block";
     }
 
-    // 2. Nhận diện thiết bị để đưa nút phù hợp lên đầu
+    // Tự đưa nút phù hợp lên đầu
     const btnAndroid = document.getElementById('btnAndroid');
     const btnIos = document.getElementById('btnIos');
-
     if (isIOS) {
       btnIos.style.order = "-1";
       btnIos.style.border = "2px solid #ffd700";
@@ -188,18 +197,33 @@
       btnAndroid.style.border = "2px solid #ffd700";
     }
 
-    // 3. Thủ thuật tự ép mở Chrome khi người dùng bấm nút trên Android từ Zalo
-    function handleAndroidDownload(e) {
-      const downloadUrl = "https://github.com/caohoanghung0409/cam-ip-sync/releases/latest/download/Noi-Day-App.apk";
-      if (isZalo && !isIOS) {
-        e.preventDefault();
-        // Ép Zalo mở sang Chrome bằng Android Intent
-        const intentUrl = "intent://github.com/caohoanghung0409/cam-ip-sync/releases/latest/download/Noi-Day-App.apk#Intent;scheme=https;package=com.android.chrome;end";
-        window.location.href = intentUrl;
-        setTimeout(() => {
-          window.location.href = downloadUrl;
-        }, 1000);
+    // Xử lý khi bấm nút Android
+    function onAndroidClick(e) {
+      if (isZalo) {
+        alert("Zalo không cho phép tải file trực tiếp. Vui lòng bấm dấu 3 chấm (...) ở góc trên bên phải màn hình và chọn 'Mở bằng trình duyệt'!");
       }
+    }
+
+    // Xử lý khi bấm nút iOS
+    function onIosClick(e) {
+      if (!isIOS) {
+        e.preventDefault();
+        alert("Thiết bị này không phải iPhone/iPad! Nút này chỉ hoạt động trên hệ điều hành iOS (iPhone).");
+        return;
+      }
+      if (isZalo) {
+        e.preventDefault();
+        alert("Vui lòng bấm dấu 3 chấm (...) góc trên màn hình Zalo, chọn 'Mở bằng Safari' để cài đặt app trực tiếp vào iPhone!");
+      }
+    }
+
+    // Hàm sao chép link
+    function copyPageLink() {
+      navigator.clipboard.writeText(window.location.href).then(() => {
+        alert("Đã sao chép link! Bạn hãy mở Chrome (Android) hoặc Safari (iPhone) rồi dán link vào để tải nhé.");
+      }).catch(() => {
+        prompt("Sao chép link dưới đây và dán vào Chrome/Safari:", window.location.href);
+      });
     }
   </script>
 </body>
