@@ -72,6 +72,7 @@
       box-sizing: border-box;
       cursor: pointer;
       border: none;
+      transition: transform 0.1s;
     }
     .btn:active {
       transform: scale(0.98);
@@ -105,52 +106,41 @@
       border-radius: 8px;
     }
 
-    /* Màn hình hướng dẫn khi mở trên Zalo */
-    #zaloBackdrop {
+    /* Màn hình hướng dẫn phụ (chỉ bật khi Zalo chặn hẳn script) */
+    #overlayGuide {
       display: none;
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(15, 23, 42, 0.95);
+      background: rgba(0,0,0,0.85);
       z-index: 9999;
       color: white;
       padding: 20px;
       box-sizing: border-box;
     }
-    .arrow-pointer {
+    .arrow-top {
       position: absolute;
       top: 15px;
       right: 25px;
-      font-size: 42px;
-      animation: bounceArrow 0.8s infinite alternate ease-in-out;
+      font-size: 40px;
+      animation: bounce 1s infinite alternate;
     }
-    @keyframes bounceArrow {
+    @keyframes bounce {
       from { transform: translateY(0); }
-      to { transform: translateY(-12px); }
-    }
-    .guide-box {
-      margin-top: 65px;
-      background: rgba(255, 255, 255, 0.1);
-      border: 1px solid #ffd700;
-      padding: 18px;
-      border-radius: 16px;
-      text-align: left;
+      to { transform: translateY(-10px); }
     }
   </style>
 </head>
 <body>
 
-  <!-- Khung hướng dẫn tự động kích hoạt khi mở trong Zalo -->
-  <div id="zaloBackdrop" onclick="this.style.display='none'">
-    <div class="arrow-pointer">↗️</div>
-    <div class="guide-box">
-      <h3 style="color: #ffd700; margin: 0 0 8px 0; font-size: 16px;">Để tải ứng dụng về máy:</h3>
-      <p style="font-size: 14px; line-height: 1.6; margin: 0; color: #f1f5f9;">
-        1. Nhấn vào biểu tượng <b>3 chấm (...)</b> ở góc trên cùng bên phải.<br>
-        2. Chọn <b>"Mở bằng trình duyệt"</b> (hoặc <i>Mở trong Chrome / Safari</i>).
+  <!-- Khung chỉ dẫn góc trên nếu trình duyệt Zalo phiên bản mới chặn hoàn toàn Intent -->
+  <div id="overlayGuide" onclick="document.getElementById('overlayGuide').style.display='none'">
+    <div class="arrow-top">↗️</div>
+    <div style="margin-top: 70px; text-align: right; padding-right: 10px;">
+      <h3 style="color: #ffd700; margin-bottom: 8px;">Nhấn vào đây để tiếp tục</h3>
+      <p style="font-size: 14px; line-height: 1.6;">
+        Bấm dấu <b>3 chấm (...)</b> ở góc trên bên phải<br>
+        Chọn <b>"Mở bằng trình duyệt"</b> để tải nhé!
       </p>
-      <div style="margin-top: 12px; text-align: center; color: #94a3b8; font-size: 12px;">
-        (Chạm vào màn hình để đóng thông báo)
-      </div>
     </div>
   </div>
 
@@ -161,29 +151,22 @@
     <h1>NỔI DẬY</h1>
     <p>Lịch trực thứ Bảy (2026 - 2050)</p>
 
-    <!-- Nút Android -->
-    <a href="https://github.com/caohoanghung0409/cam-ip-sync/releases/latest/download/Noi-Day-App.apk" 
-       class="btn btn-android" 
-       id="btnAndroid"
-       download="Noi-Day-App.apk"
-       onclick="handleAndroidTap(event)">
+    <!-- Nút Android: Tự kích hoạt mở Google Chrome ngoài Zalo -->
+    <button class="btn btn-android" id="btnAndroid" onclick="launchAndroidDownload()">
       <span>Cài đặt cho Android</span>
       <span class="badge">.APK</span>
-    </a>
+    </button>
 
-    <!-- Nút iOS: Đã cập nhật mã mới qvc8uf -->
-    <a href="itms-services://?action=download-manifest&url=https://installonair.com/storage/manifests/qvc8uf.plist" 
-       class="btn btn-ios" 
-       id="btnIos"
-       onclick="handleIosTap(event)">
+    <!-- Nút iOS: Tự kích hoạt lệnh cài đặt Apple / Safari -->
+    <button class="btn btn-ios" id="btnIos" onclick="launchIosInstall()">
       <span>Cài đặt cho iOS</span>
       <span class="badge">iPhone</span>
-    </a>
+    </button>
 
     <div class="note">
-      💡 <b>Lưu ý khi tải:</b><br>
-      • <b>Android:</b> Chọn <i>"Vẫn tải xuống"</i> khi xuất hiện cảnh báo tệp.<br>
-      • <b>iOS:</b> Sau khi tải, vào <i>Cài đặt > Cài đặt chung > Quản lý VPN & Thiết bị</i> chọn <i>Tin cậy</i>.
+      💡 <b>Lưu ý:</b><br>
+      • <b>Android:</b> Hệ thống tự mở Chrome để tải file APK về máy.<br>
+      • <b>iOS (iPhone):</b> Bấm Cài đặt, sau đó vào <i>Cài đặt > Cài đặt chung > Quản lý VPN & Thiết bị</i> chọn <i>Tin cậy</i>.
     </div>
   </div>
 
@@ -192,7 +175,10 @@
     const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
     const isZalo = ua.indexOf("Zalo") > -1 || ua.indexOf("FBAN") > -1 || ua.indexOf("FBAV") > -1;
 
-    // Tự đưa nút phù hợp lên trước
+    const apkUrl = "https://github.com/caohoanghung0409/cam-ip-sync/releases/latest/download/Noi-Day-App.apk";
+    const iosOtaUrl = "itms-services://?action=download-manifest&url=https://installonair.com/storage/manifests/qvc8uf.plist";
+
+    // Tự đưa nút phù hợp lên đầu
     const btnAndroid = document.getElementById('btnAndroid');
     const btnIos = document.getElementById('btnIos');
     if (isIOS) {
@@ -203,25 +189,41 @@
       btnAndroid.style.border = "2px solid #ffd700";
     }
 
-    // Nếu người dùng mở link trong Zalo, hiển thị ngay bảng chỉ dẫn
-    if (isZalo) {
-      document.getElementById('zaloBackdrop').style.display = 'block';
-    }
+    // Xử lý khi bấm nút Android: Bắt Zalo bung ra Google Chrome
+    function launchAndroidDownload() {
+      if (isZalo && !isIOS) {
+        // Gọi Android Intent ép mở sang Chrome
+        const chromeIntent = "intent://github.com/caohoanghung0409/cam-ip-sync/releases/latest/download/Noi-Day-App.apk#Intent;scheme=https;package=com.android.chrome;end;";
+        window.location.href = chromeIntent;
 
-    function handleAndroidTap(e) {
-      if (isZalo) {
-        document.getElementById('zaloBackdrop').style.display = 'block';
+        // Dự phòng: Nếu máy không có sẵn package chrome hoặc Zalo chặn Intent
+        setTimeout(() => {
+          window.location.href = apkUrl;
+        }, 1500);
+      } else {
+        // Nếu đã ở trong Chrome/trình duyệt ngoài thì tải luôn
+        window.location.href = apkUrl;
       }
     }
 
-    function handleIosTap(e) {
+    // Xử lý khi bấm nút iOS: Kích hoạt cài đặt qua Apple Service
+    function launchIosInstall() {
       if (!isIOS) {
-        e.preventDefault();
-        alert("Nút này chỉ dành riêng cho điện thoại iPhone!");
+        alert("Nút này chỉ dành cho iPhone/iPad!");
         return;
       }
+
       if (isZalo) {
-        document.getElementById('zaloBackdrop').style.display = 'block';
+        // Kích hoạt giao thức OTA trực tiếp để iOS hỏi mở ngoài
+        window.location.href = iosOtaUrl;
+
+        // Nếu Zalo khóa cứng giao thức itms-services thì hiện mũi tên góc phải chỉ dẫn mở Safari
+        setTimeout(() => {
+          document.getElementById('overlayGuide').style.display = 'block';
+        }, 1200);
+      } else {
+        // Đang ở trong Safari thì kích hoạt cài đặt ngay lập tức
+        window.location.href = iosOtaUrl;
       }
     }
   </script>
