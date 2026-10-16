@@ -41,9 +41,46 @@ jobs:
           flutter pub add http
           flutter pub add --dev flutter_launcher_icons
 
-          # Cấp nhãn tên ứng dụng và quyền kết nối Internet đầy đủ
-          sed -i 's/android:label=".*"/android:label="NỔI DẬY"/' android/app/src/main/AndroidManifest.xml
-          sed -i 's/<application/<uses-permission android:name="android.intent.permission.INTERNET"\/>\n    <application android:usesCleartextTraffic="true"/' android/app/src/main/AndroidManifest.xml
+          # Ghi đè file AndroidManifest.xml chuẩn cấu trúc với đầy đủ quyền INTERNET
+          cat << 'EOF' > android/app/src/main/AndroidManifest.xml
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-permission android:name="android.intent.permission.INTERNET"/>
+              <uses-permission android:name="android.intent.permission.ACCESS_NETWORK_STATE"/>
+              <application
+                  android:label="NỔI DẬY"
+                  android:name="${applicationName}"
+                  android:icon="@mipmap/launcher_icon"
+                  android:usesCleartextTraffic="true">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:launchMode="singleTop"
+                      android:taskAffinity=""
+                      android:theme="@style/LaunchTheme"
+                      android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+                      android:hardwareAccelerated="true"
+                      android:windowSoftInputMode="adjustResize">
+                      <meta-data
+                        android:name="io.flutter.embedding.android.NormalTheme"
+                        android:resource="@style/NormalTheme"
+                        />
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN"/>
+                          <category android:name="android.intent.category.LAUNCHER"/>
+                      </intent-filter>
+                  </activity>
+                  <meta-data
+                      android:name="flutterEmbedding"
+                      android:value="2" />
+              </application>
+              <queries>
+                  <intent>
+                      <action android:name="android.intent.action.PROCESS_TEXT"/>
+                      <data android:mimeType="text/plain"/>
+                  </intent>
+              </queries>
+          </manifest>
+          EOF
 
           # Tạo ảnh PNG icon TSMH với chữ S uốn lượn sắc sảo
           python3 -c "
@@ -114,14 +151,12 @@ jobs:
           flutter build apk --release --no-tree-shake-icons
           cp build/app/outputs/flutter-apk/app-release.apk ../Noi-Day-App.apk
 
-      # Tải file APK trực tiếp vào mục Artifacts của lượt chạy (chắc chắn 100% có file tải)
       - name: Upload APK to Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: Noi-Day-App
           path: Noi-Day-App.apk
 
-      # Đồng thời đẩy lên Releases
       - name: Create or Update GitHub Release
         uses: softprops/action-gh-release@v2
         with:
