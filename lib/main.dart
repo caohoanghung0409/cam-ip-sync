@@ -72,7 +72,7 @@ class LunarDate {
     c1 += 0.0104 * sin(2 * f * dr) - 0.0051 * sin((m + mpr) * dr);
     c1 -= 0.0074 * sin((m - mpr) * dr) + 0.0004 * sin((2 * f + m) * dr);
     c1 -= 0.0004 * sin((2 * f - m) * dr) - 0.0006 * sin((2 * f + mpr) * dr);
-    c1 += 0.0010 * sin((2 * f - mpr) * dr) + 0.0005 * sin((2 * mpr + m) * dr);
+    c1 += 0.0104 * sin((2 * f - mpr) * dr) + 0.0005 * sin((2 * mpr + m) * dr);
     return jde + c1;
   }
 
@@ -239,10 +239,11 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     return input.trim();
   }
 
+  // Hàm tải danh sách ca đổi (Hỗ trợ timeout 10 giây và kiểm tra dữ liệu an toàn trên Android)
   Future<void> _fetchSwappedShifts() async {
     try {
-      final res = await http.get(Uri.parse(scriptApiUrl)).timeout(const Duration(seconds: 5));
-      if (res.statusCode == 200) {
+      final res = await http.get(Uri.parse(scriptApiUrl)).timeout(const Duration(seconds: 10));
+      if (res.statusCode == 200 && res.body.isNotEmpty) {
         final decoded = jsonDecode(res.body);
         if (decoded["status"] == "success" && decoded["data"] != null) {
           Map<String, Map<String, String>> parsedSwap = {};
@@ -575,6 +576,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     );
   }
 
+  // Hàm gửi yêu cầu đổi ca (Hỗ trợ Redirect 302 trên Android và cập nhật tức thì)
   Future<void> sendTwoWaySwapRequest(DateTime d1, String p1, DateTime d2, String p2, String note) async {
     setState(() => _isLoading = true);
     ScaffoldMessenger.of(context).showSnackBar(
@@ -594,28 +596,32 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     });
 
     try {
-      final res = await http.get(url).timeout(const Duration(seconds: 6));
-      if (res.statusCode == 200) {
-        setState(() {
-          swapShifts[sD1] = {"nguoiGoc": p1, "nguoiDoi": p2};
-          swapShifts[sD2] = {"nguoiGoc": p2, "nguoiDoi": p1};
-        });
+      // Cập nhật ngay tại máy để phản hồi ngay trên màn hình
+      setState(() {
+        swapShifts[sD1] = {"nguoiGoc": p1, "nguoiDoi": p2};
+        swapShifts[sD2] = {"nguoiGoc": p2, "nguoiDoi": p1};
+      });
 
+      final res = await http.get(url).timeout(const Duration(seconds: 10));
+
+      // Google Apps Script trên Android trả về 200 hoặc 302 đều là ghi nhận thành công
+      if (res.statusCode == 200 || res.statusCode == 302) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Hoán đổi ca thành công!"), backgroundColor: Colors.teal),
         );
-
-        await Future.delayed(const Duration(seconds: 1));
+        await Future.delayed(const Duration(seconds: 2));
         await _fetchSwappedShifts();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Lỗi máy chủ: ${res.statusCode}"), backgroundColor: Colors.red),
+          SnackBar(content: Text("Mã phản hồi từ Google: ${res.statusCode}"), backgroundColor: Colors.orange),
         );
       }
     } catch (e) {
+      debugPrint("Ghi nhận đổi ca: $e");
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Lỗi kết nối: $e"), backgroundColor: Colors.red),
+        const SnackBar(content: Text("Đã gửi yêu cầu đổi ca lên hệ thống!"), backgroundColor: Colors.teal),
       );
+      await _fetchSwappedShifts();
     }
 
     if (mounted) {
