@@ -279,39 +279,30 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     }
   }
 
+  // HÀM CHUẨN HÓA NGÀY THÔNG MINH: TỰ ĐỘNG HIỂU MỌI ĐỊNH DẠNG (., /, -, khoảng trắng,...)
   static String _normalizeDate(String input) {
     try {
       String clean = input.replaceAll("'", "").replaceAll('"', '').trim();
       if (clean.isEmpty) return "";
 
       if (clean.contains('T')) clean = clean.split('T')[0].trim();
-      if (clean.contains(' ')) clean = clean.split(' ')[0].trim();
 
-      if (clean.contains('/')) {
-        final parts = clean.split('/');
-        if (parts.length == 3) {
-          if (parts[0].trim().length == 4) {
-            return "${parts[0].trim()}-${parts[1].trim().padLeft(2, '0')}-${parts[2].trim().padLeft(2, '0')}";
-          }
-          String d = parts[0].trim().padLeft(2, '0');
-          String m = parts[1].trim().padLeft(2, '0');
-          String y = parts[2].trim();
+      // Dùng Regex trích xuất tất cả các cụm số nguyên
+      final matches = RegExp(r'\d+').allMatches(clean).map((m) => m.group(0)!).toList();
+      if (matches.length >= 3) {
+        // Trường hợp YYYY/MM/DD (hoặc YYYY-MM-DD, YYYY.MM.DD)
+        if (matches[0].length == 4) {
+          String y = matches[0];
+          String m = matches[1].padLeft(2, '0');
+          String d = matches[2].padLeft(2, '0');
           return "$y-$m-$d";
         }
-      } else if (clean.contains('-')) {
-        final parts = clean.split('-');
-        if (parts.length == 3) {
-          if (parts[0].trim().length == 4) {
-            String y = parts[0].trim();
-            String m = parts[1].trim().padLeft(2, '0');
-            String d = parts[2].trim().padLeft(2, '0');
-            return "$y-$m-$d";
-          } else {
-            String d = parts[0].trim().padLeft(2, '0');
-            String m = parts[1].trim().padLeft(2, '0');
-            String y = parts[2].trim();
-            return "$y-$m-$d";
-          }
+        // Trường hợp DD/MM/YYYY (hoặc DD-MM-YYYY, DD.MM.YYYY)
+        else if (matches[2].length == 4) {
+          String d = matches[0].padLeft(2, '0');
+          String m = matches[1].padLeft(2, '0');
+          String y = matches[2];
+          return "$y-$m-$d";
         }
       }
     } catch (_) {}
