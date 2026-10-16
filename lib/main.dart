@@ -41,7 +41,7 @@ class DutyShift {
   });
 }
 
-// ================= THUẬT TOÁN ÂM LỊCH VIỆT NAM (CHUẨN DART) =================
+// ================= THUẬT TOÁN ÂM LỊCH VIỆT NAM =================
 class LunarDate {
   final int day;
   final int month;
@@ -163,6 +163,9 @@ class NoiDayApp extends StatelessWidget {
 
 // ================= KHO TÀI KHOẢN VÀ DỮ LIỆU DÙNG CHUNG =================
 class UserDataStore {
+  static const String scriptApiUrl =
+      "https://script.google.com/macros/s/AKfycbwC4lFvh_9Wd_P5KA5yih3-4uqqB3Wm9Yeila5GSuImfryloKEO4FYfQsICVx937vTM/exec";
+
   static final Member adminMember = const Member(
     username: "admin",
     name: "QUẢN TRỊ VIÊN",
@@ -185,6 +188,48 @@ class UserDataStore {
     "trinh.lt": "1111",
     "hung.ch": "1111",
   };
+
+  // Tải mật mã thực tế từ Google Sheets tab User về
+  static Future<void> fetchRemotePasswords() async {
+    try {
+      final uri = Uri.parse(scriptApiUrl).replace(queryParameters: {"action": "get_users"});
+      final client = http.Client();
+      final request = http.Request('GET', uri)..followRedirects = true..maxRedirects = 5;
+      final streamedResponse = await client.send(request).timeout(const Duration(seconds: 8));
+      final res = await http.Response.fromStream(streamedResponse);
+
+      if (res.statusCode == 200 && res.body.isNotEmpty) {
+        final data = jsonDecode(res.body);
+        if (data["status"] == "success" && data["users"] != null) {
+          final Map<String, dynamic> remote = data["users"];
+          remote.forEach((key, val) {
+            userPasswords[key.toLowerCase()] = val.toString();
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
+  // Cập nhật mật mã mới trực tiếp lên Google Sheets
+  static Future<bool> updateRemotePassword(String username, String newPassword) async {
+    try {
+      final uri = Uri.parse(scriptApiUrl).replace(queryParameters: {
+        "action": "change_pass",
+        "username": username.toLowerCase(),
+        "new_pass": newPassword,
+      });
+      final client = http.Client();
+      final request = http.Request('GET', uri)..followRedirects = true..maxRedirects = 5;
+      final streamedResponse = await client.send(request).timeout(const Duration(seconds: 10));
+      final res = await http.Response.fromStream(streamedResponse);
+
+      if (res.statusCode == 200) {
+        userPasswords[username.toLowerCase()] = newPassword;
+        return true;
+      }
+    } catch (_) {}
+    return false;
+  }
 }
 
 // ================= WRAPPER BẮT BUỘC ĐĂNG NHẬP =================
@@ -197,6 +242,12 @@ class AuthWrapper extends StatefulWidget {
 
 class _AuthWrapperState extends State<AuthWrapper> {
   Member? _loggedInUser;
+
+  @override
+  void initState() {
+    super.initState();
+    UserDataStore.fetchRemotePasswords();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -231,8 +282,9 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscureText = true;
   String _errorMsg = "";
+  bool _isChecking = false;
 
-  void _handleLogin() {
+  Future<void> _handleLogin() async {
     final inputUser = _usernameController.text.trim().toLowerCase();
     final inputPass = _passwordController.text.trim();
 
@@ -240,6 +292,11 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => _errorMsg = "Vui lòng nhập đầy đủ tài khoản và mật mã");
       return;
     }
+
+    setState(() => _isChecking = true);
+    // Tải mật mã mới nhất trên Sheets trước khi kiểm tra
+    await UserDataStore.fetchRemotePasswords();
+    setState(() => _isChecking = false);
 
     Member? matched;
     if (inputUser == "admin") {
@@ -308,14 +365,15 @@ class _LoginScreenState extends State<LoginScreen> {
         actions: [
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00695C), foregroundColor: Colors.white),
-            onPressed: () {
+            onPressed: () async {
               final newPass = newPassCtrl.text.trim();
               if (newPass.isEmpty || newPass == "1111") {
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Mật mã mới không được để trống hoặc là 1111!"), backgroundColor: Colors.red));
                 return;
               }
-              UserDataStore.userPasswords[user.username] = newPass;
               Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Đang lưu mật mã mới lên Google Sheets...")));
+              await UserDataStore.updateRemotePassword(user.username, newPass);
               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Đổi mật mã thành công!"), backgroundColor: Colors.teal));
               widget.onLoginSuccess(user);
             },
@@ -421,15 +479,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     elevation: 2,
                   ),
-                  onPressed: _handleLogin,
-                  child: const Text("ĐĂNG NHẬP", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, letterSpacing: 0.5)),
-                ),
-                const SizedBox(height: 12),
-                const Center(
-                  child: Text(
-                    "Mật mã ban đầu: 1111 (hỗ trợ chữ hoa / thường)",
-                    style: TextStyle(fontSize: 11, color: Colors.grey),
-                  ),
+                  onPressed: _isChecking ? null : _handleLogin,
+                  child: _isChecking
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Text("ĐĂNG NHẬP", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, letterSpacing: 0.5)),
                 ),
               ],
             ),
@@ -454,8 +507,7 @@ class MainDutyScreen extends StatefulWidget {
 class _MainDutyScreenState extends State<MainDutyScreen> {
   static final DateTime baseSaturday = DateTime(2026, 10, 17);
   static const String sheetId = "12LwsnfhdvnT9WqZAiXy6lrA0GrEFpdA1IUXp5YfHf0c";
-  static const String scriptApiUrl =
-      "https://script.google.com/macros/s/AKfycbwC4lFvh_9Wd_P5KA5yih3-4uqqB3Wm9Yeila5GSuImfryloKEO4FYfQsICVx937vTM/exec";
+  static const String scriptApiUrl = UserDataStore.scriptApiUrl;
 
   static Map<String, String> customHolidays = {};
   static Map<String, Map<String, String>> swapShifts = {};
@@ -486,6 +538,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
       _fetchInternetTime(),
       _fetchGoogleSheetHolidays(),
       _fetchSwappedShifts(),
+      UserDataStore.fetchRemotePasswords(),
     ]);
     if (mounted) {
       setState(() => _isLoading = false);
@@ -783,7 +836,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("HỦY", style: TextStyle(color: Colors.grey))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00695C), foregroundColor: Colors.white),
-            onPressed: () {
+            onPressed: () async {
               final oldPass = oldPassController.text.trim();
               final newPass = newPassController.text.trim();
               final currentActual = UserDataStore.userPasswords[widget.currentUser.username] ?? "1111";
@@ -797,8 +850,9 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                 return;
               }
 
-              UserDataStore.userPasswords[widget.currentUser.username] = newPass;
               Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Đang lưu mật mã mới lên Google Sheets...")));
+              await UserDataStore.updateRemotePassword(widget.currentUser.username, newPass);
               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Đã đổi mật mã thành công!"), backgroundColor: Colors.teal));
             },
             child: const Text("CẬP NHẬT", style: TextStyle(fontWeight: FontWeight.bold)),
@@ -1072,7 +1126,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // ================= 1. BANNER TRỰC TUẦN NÀY =================
+            // BANNER TRỰC TUẦN NÀY
             Container(
               margin: const EdgeInsets.fromLTRB(16, 16, 16, 10),
               decoration: BoxDecoration(
@@ -1208,7 +1262,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
               ),
             ),
 
-            // ================= 2. BỘ LỌC THEO THÀNH VIÊN =================
+            // BỘ LỌC THÀNH VIÊN
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               height: 40,
@@ -1225,7 +1279,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
               ),
             ),
 
-            // ================= 3. DANH SÁCH 2 NĂM GOM THEO THÁNG =================
+            // DANH SÁCH 2 NĂM
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
               child: Column(
@@ -1315,7 +1369,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                                     context,
                                     MaterialPageRoute(
                                       builder: (context) => YearRangeMemberDetailScreen(
-                                        currentUser: widget.currentUser, // TRUYỀN USER ĐANG ĐĂNG NHẬP
+                                        currentUser: widget.currentUser,
                                         member: m,
                                         members: UserDataStore.baseMembers,
                                         initialYear: _currentDate.year >= 2026 && _currentDate.year <= 2050 ? _currentDate.year : 2026,
@@ -1466,9 +1520,9 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
   }
 }
 
-// ================= MÀN HÌNH CHI TIẾT THEO NĂM (ĐÃ RÀNG BUỘC PHÂN QUYỀN) =================
+// ================= MÀN HÌNH CHI TIẾT THEO NĂM =================
 class YearRangeMemberDetailScreen extends StatefulWidget {
-  final Member currentUser; // LƯU THÔNG TIN USER ĐANG ĐĂNG NHẬP
+  final Member currentUser;
   final Member member;
   final List<Member> members;
   final int initialYear;
@@ -1634,7 +1688,6 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
                   final dateStr = "${shift.date.day.toString().padLeft(2, '0')}/${shift.date.month.toString().padLeft(2, '0')}/${shift.date.year}";
                   final isPast = shift.date.isBefore(todayStart);
 
-                  // RÀNG BUỘC QUYỀN ĐỔI CA TRONG TRANG CHI TIẾT
                   final bool canSwap = widget.currentUser.isAdmin || 
                       _MainDutyScreenState._matchMemberName(widget.currentUser.name) == _MainDutyScreenState._matchMemberName(shift.assignedPerson);
 
@@ -1671,7 +1724,7 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
                             ),
                           ],
                         ),
-                        if (!isPast && canSwap) // CHỈ HIỆN NÚT NẾU LÀ ADMIN HOẶC CHÍNH CHỦ
+                        if (!isPast && canSwap)
                           ElevatedButton.icon(
                             icon: const Icon(Icons.swap_horiz, size: 14),
                             label: const Text("Đổi ca", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
