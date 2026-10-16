@@ -72,7 +72,7 @@ class LunarDate {
     c1 += 0.0104 * sin(2 * f * dr) - 0.0051 * sin((m + mpr) * dr);
     c1 -= 0.0074 * sin((m - mpr) * dr) + 0.0004 * sin((2 * f + m) * dr);
     c1 -= 0.0004 * sin((2 * f - m) * dr) - 0.0006 * sin((2 * f + mpr) * dr);
-    c1 += 0.0104 * sin((2 * f - mpr) * dr) + 0.0005 * sin((2 * mpr + m) * dr);
+    c1 += 0.0010 * sin((2 * f - mpr) * dr) + 0.0005 * sin((2 * mpr + m) * dr);
     return jde + c1;
   }
 
@@ -134,7 +134,7 @@ class LunarDate {
   }
 }
 
-// ================= GIAO DIỆN CHÍNH CỦA APP =================
+// ================= GIAO DIỆN CHÍNH =================
 class NoiDayApp extends StatelessWidget {
   const NoiDayApp({super.key});
 
@@ -160,7 +160,6 @@ class MainDutyScreen extends StatefulWidget {
 }
 
 class _MainDutyScreenState extends State<MainDutyScreen> {
-  // Thứ tự 4 người: SÂM -> MINH -> TRINH -> HƯNG
   static final List<Member> baseMembers = const [
     Member(name: "NGUYỄN THỊ SÂM", shortName: "SÂM", themeColor: Colors.deepOrange),
     Member(name: "NGUYỄN NGỌC HOÀNG MINH", shortName: "MINH", themeColor: Colors.blue),
@@ -168,24 +167,17 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     Member(name: "CAO HOÀNG HƯNG", shortName: "HƯNG", themeColor: Colors.teal),
   ];
 
-  // Mốc xuất phát gốc: Thứ Bảy 17/10/2026 là ca của SÂM (vị trí 0)
   static final DateTime baseSaturday = DateTime(2026, 10, 17);
-
-  // Sheet ID và Link Google Apps Script Web App của bạn
   static const String sheetId = "12LwsnfhdvnT9WqZAiXy6lrA0GrEFpdA1IUXp5YfHf0c";
   static const String scriptApiUrl =
       "https://script.google.com/macros/s/AKfycbwC4lFvh_9Wd_P5KA5yih3-4uqqB3Wm9Yeila5GSuImfryloKEO4FYfQsICVx937vTM/exec";
 
-  // Bộ nhớ tĩnh lưu ngày nghỉ từ Sheets (Key: "YYYY-MM-DD", Value: "Lý do")
   static Map<String, String> customHolidays = {};
-
-  // Bộ nhớ lưu các ca đã đổi (Key: "YYYY-MM-DD", Value: {nguoiGoc, nguoiDoi, ghiChu})
   static Map<String, Map<String, String>> swapShifts = {};
 
   DateTime _currentDate = DateTime.now();
   bool _isLoading = false;
 
-  // Danh sách các ngày lễ cố định (Dương lịch & 24/11)
   static final Map<String, String> holidaysMap = {
     "1-1": "Tết Dương Lịch",
     "30-4": "Giải Phóng Miền Nam",
@@ -214,7 +206,6 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     }
   }
 
-  // Tải dữ liệu ngày nghỉ bù / hoán đổi từ Sheet 1
   Future<void> _fetchGoogleSheetHolidays() async {
     final String url = "https://docs.google.com/spreadsheets/d/$sheetId/gviz/tq?tqx=out:csv";
     try {
@@ -222,15 +213,11 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
       if (res.statusCode == 200) {
         final lines = const LineSplitter().convert(res.body);
         Map<String, String> parsed = {};
-
         for (int i = 1; i < lines.length; i++) {
           final row = lines[i].replaceAll('"', '').split(',');
           if (row.isNotEmpty && row[0].trim().isNotEmpty) {
             String rawDate = row[0].trim();
-            String reason = row.length > 1 && row[1].trim().isNotEmpty
-                ? row[1].trim()
-                : "Nghỉ công ty";
-
+            String reason = row.length > 1 && row[1].trim().isNotEmpty ? row[1].trim() : "Nghỉ công ty";
             String formattedDate = _normalizeDate(rawDate);
             if (formattedDate.isNotEmpty) {
               parsed[formattedDate] = reason;
@@ -239,38 +226,35 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
         }
         customHolidays = parsed;
       }
-    } catch (e) {
-      debugPrint("Lỗi tải Google Sheets: $e");
-    }
+    } catch (_) {}
   }
 
-  // Tải danh sách ca đã đổi từ Google Apps Script
   Future<void> _fetchSwappedShifts() async {
     try {
-      final res = await http.get(Uri.parse(scriptApiUrl)).timeout(const Duration(seconds: 5));
+      final res = await http.get(Uri.parse(scriptApiUrl)).timeout(const Duration(seconds: 4));
       if (res.statusCode == 200) {
         final decoded = jsonDecode(res.body);
         if (decoded["status"] == "success" && decoded["data"] != null) {
           Map<String, Map<String, String>> parsedSwap = {};
           for (var item in decoded["data"]) {
-            String date = _normalizeDate(item["ngay"].toString());
-            if (date.isNotEmpty) {
-              parsedSwap[date] = {
-                "nguoiGoc": item["nguoiGoc"].toString(),
-                "nguoiDoi": item["nguoiDoi"].toString(),
-                "ghiChu": item["ghiChu"]?.toString() ?? "",
-              };
+            String d1 = _normalizeDate(item["ngay1"]?.toString() ?? "");
+            String d2 = _normalizeDate(item["ngay2"]?.toString() ?? "");
+            String p1 = item["nguoi1"]?.toString() ?? "";
+            String p2 = item["nguoi2"]?.toString() ?? "";
+
+            if (d1.isNotEmpty && p2.isNotEmpty) {
+              parsedSwap[d1] = {"nguoiGoc": p1, "nguoiDoi": p2};
+            }
+            if (d2.isNotEmpty && p1.isNotEmpty) {
+              parsedSwap[d2] = {"nguoiGoc": p2, "nguoiDoi": p1};
             }
           }
           swapShifts = parsedSwap;
         }
       }
-    } catch (e) {
-      debugPrint("Lỗi tải danh sách đổi ca: $e");
-    }
+    } catch (_) {}
   }
 
-  // Chuẩn hóa định dạng ngày sang YYYY-MM-DD
   static String _normalizeDate(String input) {
     try {
       if (input.contains('/')) {
@@ -294,12 +278,9 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     return "";
   }
 
-  // Ưu tiên 1: Internet time | Ưu tiên 2: Giờ điện thoại
   Future<void> _fetchInternetTime() async {
     try {
-      final res = await http
-          .get(Uri.parse('https://worldtimeapi.org/api/timezone/Asia/Ho_Chi_Minh'))
-          .timeout(const Duration(seconds: 2));
+      final res = await http.get(Uri.parse('https://worldtimeapi.org/api/timezone/Asia/Ho_Chi_Minh')).timeout(const Duration(seconds: 2));
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         _currentDate = DateTime.parse(data['datetime']);
@@ -309,18 +290,15 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     }
   }
 
-  // Nhận diện ngày lễ: Google Sheets -> Dương lịch/24-11 -> Âm lịch
   static String? checkHoliday(DateTime date) {
     String dateKey = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
     if (customHolidays.containsKey(dateKey)) {
       return customHolidays[dateKey];
     }
-
     String key = "${date.day}-${date.month}";
     if (holidaysMap.containsKey(key)) {
       return holidaysMap[key];
     }
-
     LunarDate lunar = LunarDate.fromSolar(date.day, date.month, date.year);
     if (lunar.month == 12 && (lunar.day == 29 || lunar.day == 30)) {
       return "Nghỉ Tết Nguyên Đán";
@@ -331,7 +309,6 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     if (lunar.month == 3 && lunar.day == 10) {
       return "Giỗ Tổ Hùng Vương (10/3 ÂL)";
     }
-
     return null;
   }
 
@@ -356,7 +333,6 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     String assignedPerson = defaultPerson;
     bool isSwapped = false;
 
-    // Kiểm tra xem tuần này có được đổi ca không
     String dateKey = "${thisSaturday.year}-${thisSaturday.month.toString().padLeft(2, '0')}-${thisSaturday.day.toString().padLeft(2, '0')}";
     if (swapShifts.containsKey(dateKey)) {
       assignedPerson = swapShifts[dateKey]!["nguoiDoi"]!;
@@ -364,7 +340,6 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     }
 
     String? holiday = checkHoliday(thisSaturday);
-
     return DutyShift(
       date: thisSaturday,
       assignedPerson: assignedPerson,
@@ -398,15 +373,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
         originalName = baseMember.name;
       }
 
-      String timelineText;
-      if (i == 0) {
-        timelineText = "Trực tuần này";
-      } else if (i == 1) {
-        timelineText = "Tuần tới";
-      } else {
-        timelineText = "$i tuần nữa";
-      }
-
+      String timelineText = (i == 0) ? "Trực tuần này" : (i == 1 ? "Tuần tới" : "$i tuần nữa");
       final dateStr = "${targetSat.day.toString().padLeft(2, '0')}/${targetSat.month.toString().padLeft(2, '0')}/${targetSat.year}";
 
       rotated.add({
@@ -425,14 +392,34 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     return rotated;
   }
 
-  // Hộp thoại popup Đổi ca trực
-  void _showSwapShiftDialog(DateTime date, String currentPerson) {
-    final dateKey = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
-    final dateStr = "${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}";
+  // Lấy các ngày thứ Bảy trực sắp tới của 1 thành viên
+  static List<DateTime> getUpcomingSaturdaysForMember(String memberName, DateTime fromDate) {
+    List<DateTime> list = [];
+    DateTime sat = fromDate;
+    if (sat.weekday != DateTime.saturday) {
+      sat = sat.add(Duration(days: (6 - sat.weekday + 7) % 7));
+    }
+    for (int i = 0; i < 30; i++) {
+      int diffDays = sat.difference(baseSaturday).inDays;
+      int diffWeeks = (diffDays / 7).round();
+      int personIdx = (diffWeeks % baseMembers.length + baseMembers.length) % baseMembers.length;
+      if (baseMembers[personIdx].name == memberName) {
+        list.add(sat);
+      }
+      sat = sat.add(const Duration(days: 7));
+      if (list.length >= 6) break;
+    }
+    return list;
+  }
 
-    // Danh sách 3 người còn lại để chọn đổi
-    final candidates = baseMembers.where((m) => m.name != currentPerson).toList();
-    Member selectedCandidate = candidates.first;
+  // Hộp thoại đổi ca chọn đích danh ngày trực của người kia
+  void showTwoWaySwapDialog(BuildContext context, DateTime sourceDate, String sourcePerson) {
+    final dateStr = "${sourceDate.day.toString().padLeft(2, '0')}/${sourceDate.month.toString().padLeft(2, '0')}/${sourceDate.year}";
+    final otherMembers = baseMembers.where((m) => m.name != sourcePerson).toList();
+
+    Member targetMember = otherMembers.first;
+    List<DateTime> targetDates = getUpcomingSaturdaysForMember(targetMember.name, _currentDate);
+    DateTime? selectedTargetDate = targetDates.isNotEmpty ? targetDates.first : null;
     final reasonController = TextEditingController();
 
     showDialog(
@@ -442,11 +429,11 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
           return AlertDialog(
             backgroundColor: Colors.white,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: Row(
+            title: const Row(
               children: [
-                const Icon(Icons.swap_horiz, color: Color(0xFF00796B), size: 28),
-                const SizedBox(width: 8),
-                const Text("ĐỔI CA TRỰC", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF00796B))),
+                Icon(Icons.swap_horiz, color: Color(0xFF00796B), size: 28),
+                SizedBox(width: 8),
+                Text("HOÁN ĐỔI CA TRỰC", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: Color(0xFF00796B))),
               ],
             ),
             content: SingleChildScrollView(
@@ -454,39 +441,73 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("Ngày trực: Thứ Bảy, $dateStr", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(color: Colors.teal.shade50, borderRadius: BorderRadius.circular(8)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("Ca của bạn: $sourcePerson", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF004D40))),
+                        Text("Ngày: Thứ Bảy, $dateStr", style: const TextStyle(fontSize: 12, color: Colors.black87)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  const Text("1. Chọn người muốn đổi ca cùng:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                   const SizedBox(height: 6),
-                  Text("Người trực hiện tại: $currentPerson", style: const TextStyle(color: Colors.blueGrey, fontSize: 13)),
-                  const Divider(height: 24),
-                  const Text("Chọn người đổi ca thay:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                  const SizedBox(height: 8),
                   DropdownButtonFormField<Member>(
-                    value: selectedCandidate,
+                    value: targetMember,
                     decoration: InputDecoration(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                     ),
-                    items: candidates.map((m) {
+                    items: otherMembers.map((m) {
                       return DropdownMenuItem<Member>(
                         value: m,
-                        child: Text(m.name, style: TextStyle(fontWeight: FontWeight.bold, color: m.themeColor)),
+                        child: Text(m.name, style: TextStyle(fontWeight: FontWeight.bold, color: m.themeColor, fontSize: 13)),
                       );
                     }).toList(),
                     onChanged: (val) {
                       if (val != null) {
-                        setDialogState(() => selectedCandidate = val);
+                        setDialogState(() {
+                          targetMember = val;
+                          targetDates = getUpcomingSaturdaysForMember(targetMember.name, _currentDate);
+                          selectedTargetDate = targetDates.isNotEmpty ? targetDates.first : null;
+                        });
                       }
                     },
                   ),
+                  const SizedBox(height: 14),
+                  Text("2. Chọn ca trực của ${targetMember.shortName} để đổi:", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  const SizedBox(height: 6),
+                  if (targetDates.isEmpty)
+                    const Text("Không tìm thấy ngày trực sắp tới", style: TextStyle(color: Colors.red, fontSize: 12))
+                  else
+                    DropdownButtonFormField<DateTime>(
+                      value: selectedTargetDate,
+                      decoration: InputDecoration(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      items: targetDates.map((d) {
+                        final s = "Thứ Bảy, ${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}";
+                        return DropdownMenuItem<DateTime>(value: d, child: Text(s, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)));
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) {
+                          setDialogState(() => selectedTargetDate = val);
+                        }
+                      },
+                    ),
                   const SizedBox(height: 14),
                   const Text("Lý do đổi (tùy chọn):", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                   const SizedBox(height: 6),
                   TextField(
                     controller: reasonController,
                     decoration: InputDecoration(
-                      hintText: "Ví dụ: Bận việc gia đình, về quê...",
+                      hintText: "Ví dụ: Bận việc gia đình...",
                       hintStyle: const TextStyle(fontSize: 12, color: Colors.grey),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                   ),
@@ -494,21 +515,15 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
               ),
             ),
             actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text("HỦY", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
-              ),
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("HỦY", style: TextStyle(color: Colors.grey))),
               ElevatedButton.icon(
-                icon: const Icon(Icons.check, size: 18),
-                label: const Text("XÁC NHẬN ĐỔI", style: TextStyle(fontWeight: FontWeight.bold)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF00796B),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
+                icon: const Icon(Icons.check, size: 16),
+                label: const Text("XÁC NHẬN HOÁN ĐỔI", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00796B), foregroundColor: Colors.white),
                 onPressed: () async {
+                  if (selectedTargetDate == null) return;
                   Navigator.pop(ctx);
-                  await _sendSwapRequest(dateKey, currentPerson, selectedCandidate.name, reasonController.text);
+                  await sendTwoWaySwapRequest(sourceDate, sourcePerson, selectedTargetDate!, targetMember.name, reasonController.text);
                 },
               ),
             ],
@@ -518,33 +533,35 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     );
   }
 
-  // Gửi lệnh đổi ca lên Google Apps Script
-  Future<void> _sendSwapRequest(String dateKey, String nguoiGoc, String nguoiDoi, String ghiChu) async {
+  // Gửi lệnh đổi ca qua GET để chống lỗi CORS trên web
+  Future<void> sendTwoWaySwapRequest(DateTime d1, String p1, DateTime d2, String p2, String note) async {
     setState(() => _isLoading = true);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("Đang ghi nhận đổi ca lên Google Sheets..."), duration: Duration(seconds: 2)),
     );
 
-    try {
-      final res = await http.post(
-        Uri.parse(scriptApiUrl),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          "ngay": dateKey,
-          "nguoiGoc": nguoiGoc,
-          "nguoiDoi": nguoiDoi,
-          "ghiChu": ghiChu.isEmpty ? "Đổi ca qua App" : ghiChu,
-        }),
-      );
+    final sD1 = "${d1.year}-${d1.month.toString().padLeft(2, '0')}-${d1.day.toString().padLeft(2, '0')}";
+    final sD2 = "${d2.year}-${d2.month.toString().padLeft(2, '0')}-${d2.day.toString().padLeft(2, '0')}";
 
+    final url = Uri.parse(scriptApiUrl).replace(queryParameters: {
+      "action": "swap",
+      "ngay1": sD1,
+      "nguoi1": p1,
+      "ngay2": sD2,
+      "nguoi2": p2,
+      "ghiChu": note.isEmpty ? "Đổi ca qua App" : note,
+    });
+
+    try {
+      final res = await http.get(url).timeout(const Duration(seconds: 6));
       if (res.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Đổi ca thành công!"), backgroundColor: Colors.teal),
+          const SnackBar(content: Text("Hoán đổi ca thành công!"), backgroundColor: Colors.teal),
         );
         await _fetchSwappedShifts();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Lỗi từ server: ${res.statusCode}"), backgroundColor: Colors.red),
+          SnackBar(content: Text("Lỗi máy chủ: ${res.statusCode}"), backgroundColor: Colors.red),
         );
       }
     } catch (e) {
@@ -593,7 +610,6 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // Banner ca trực tuần này
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(18),
@@ -656,9 +672,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                       ),
                     ),
                   Text(
-                    currentDuty.isHoliday
-                        ? "Trùng dịp nghỉ: ${currentDuty.holidayName} (Được nghỉ)"
-                        : "Đến lượt cày cuốc, chuẩn bị tinh thần!",
+                    currentDuty.isHoliday ? "Trùng dịp nghỉ: ${currentDuty.holidayName} (Được nghỉ)" : "Đến lượt cày cuốc, chuẩn bị tinh thần!",
                     style: const TextStyle(color: Colors.white70, fontSize: 12),
                   ),
                   if (!currentDuty.isHoliday) ...[
@@ -674,15 +688,13 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                         ),
-                        onPressed: () => _showSwapShiftDialog(currentDuty.date, currentDuty.assignedPerson),
+                        onPressed: () => showTwoWaySwapDialog(context, currentDuty.date, currentDuty.assignedPerson),
                       ),
                     ),
                   ],
                 ],
               ),
             ),
-
-            // Danh sách thứ tự xoay tua kèm ngày cụ thể
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
@@ -721,12 +733,11 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                                 builder: (context) => YearRangeMemberDetailScreen(
                                   member: m,
                                   members: _MainDutyScreenState.baseMembers,
-                                  initialYear: _currentDate.year >= 2026 && _currentDate.year <= 2050
-                                      ? _currentDate.year
-                                      : 2026,
+                                  initialYear: _currentDate.year >= 2026 && _currentDate.year <= 2050 ? _currentDate.year : 2026,
+                                  onSwapRequested: (d, p) => showTwoWaySwapDialog(context, d, p),
                                 ),
                               ),
-                            );
+                            ).then((_) => _initData());
                           },
                           child: Ink(
                             padding: const EdgeInsets.all(14),
@@ -741,15 +752,10 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                             child: Row(
                               children: [
                                 CircleAvatar(
-                                  backgroundColor: isCurrentWeek
-                                      ? Colors.deepOrange
-                                      : m.themeColor.withOpacity(0.15),
+                                  backgroundColor: isCurrentWeek ? Colors.deepOrange : m.themeColor.withOpacity(0.15),
                                   foregroundColor: isCurrentWeek ? Colors.white : m.themeColor,
                                   radius: 20,
-                                  child: Text(
-                                    "${idx + 1}",
-                                    style: const TextStyle(fontWeight: FontWeight.bold),
-                                  ),
+                                  child: Text("${idx + 1}", style: const TextStyle(fontWeight: FontWeight.bold)),
                                 ),
                                 const SizedBox(width: 14),
                                 Expanded(
@@ -770,14 +776,8 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                                             const SizedBox(width: 6),
                                             Container(
                                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                              decoration: BoxDecoration(
-                                                color: Colors.amber.shade100,
-                                                borderRadius: BorderRadius.circular(4),
-                                              ),
-                                              child: const Text(
-                                                "ĐÃ ĐỔI CA",
-                                                style: TextStyle(color: Colors.brown, fontSize: 10, fontWeight: FontWeight.bold),
-                                              ),
+                                              decoration: BoxDecoration(color: Colors.amber.shade100, borderRadius: BorderRadius.circular(4)),
+                                              child: const Text("ĐÃ ĐỔI CA", style: TextStyle(color: Colors.brown, fontSize: 10, fontWeight: FontWeight.bold)),
                                             ),
                                           ],
                                         ],
@@ -786,14 +786,10 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                                       Text(
                                         isHoliday
                                             ? "$timeline - $dateStr (Miễn trực: $holidayName)"
-                                            : (isSwapped
-                                                ? "$timeline - $dateStr (Đổi thay cho $originalName)"
-                                                : "$timeline - $dateStr"),
+                                            : (isSwapped ? "$timeline - $dateStr (Đổi thay cho $originalName)" : "$timeline - $dateStr"),
                                         style: TextStyle(
                                           fontSize: 12,
-                                          color: isHoliday
-                                              ? Colors.red
-                                              : (isCurrentWeek ? Colors.deepOrange : Colors.grey.shade700),
+                                          color: isHoliday ? Colors.red : (isCurrentWeek ? Colors.deepOrange : Colors.grey.shade700),
                                           fontWeight: (isCurrentWeek || isHoliday) ? FontWeight.bold : FontWeight.normal,
                                         ),
                                       ),
@@ -802,9 +798,9 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                                 ),
                                 if (!isHoliday)
                                   IconButton(
-                                    icon: const Icon(Icons.swap_horiz, size: 20, color: Color(0xFF00796B)),
-                                    tooltip: "Đổi ca tuần này",
-                                    onPressed: () => _showSwapShiftDialog(targetSat, m.name),
+                                    icon: const Icon(Icons.swap_horiz, size: 22, color: Color(0xFF00796B)),
+                                    tooltip: "Đổi ca",
+                                    onPressed: () => showTwoWaySwapDialog(context, targetSat, m.name),
                                   )
                                 else
                                   const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
@@ -826,17 +822,19 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
   }
 }
 
-// Màn hình chi tiết tra cứu lịch đến 2050
+// Màn hình chi tiết tra cứu lịch đến 2050 (Kèm nút đổi ca từng ngày)
 class YearRangeMemberDetailScreen extends StatefulWidget {
   final Member member;
   final List<Member> members;
   final int initialYear;
+  final Function(DateTime date, String person) onSwapRequested;
 
   const YearRangeMemberDetailScreen({
     super.key,
     required this.member,
     required this.members,
     required this.initialYear,
+    required this.onSwapRequested,
   });
 
   @override
@@ -856,7 +854,6 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
   List<DutyShift> _getShiftsForYear(int year) {
     List<DutyShift> shifts = [];
     DateTime date = DateTime(year, 1, 1);
-
     int daysUntilFirstSat = (6 - date.weekday + 7) % 7;
     DateTime saturday = date.add(Duration(days: daysUntilFirstSat));
 
@@ -886,7 +883,6 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
           originalPerson: defaultPerson,
         ));
       }
-
       saturday = saturday.add(const Duration(days: 7));
     }
     return shifts;
@@ -932,10 +928,7 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
                     children: [
                       Container(
                         padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: Colors.white24,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
+                        decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(8)),
                         child: const Icon(Icons.calendar_month, color: Colors.amber, size: 22),
                       ),
                       const SizedBox(width: 10),
@@ -950,13 +943,7 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4),
-                      ],
-                    ),
+                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<int>(
                         value: _selectedYear,
@@ -964,22 +951,13 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF00796B)),
                         dropdownColor: Colors.white,
                         items: _years.map((int year) {
-                          final isCurrent = year == _selectedYear;
                           return DropdownMenuItem<int>(
                             value: year,
-                            child: Text(
-                              "NĂM $year",
-                              style: TextStyle(
-                                fontWeight: isCurrent ? FontWeight.w900 : FontWeight.bold,
-                                color: isCurrent ? const Color(0xFF00796B) : Colors.black87,
-                              ),
-                            ),
+                            child: Text("NĂM $year", style: TextStyle(fontWeight: year == _selectedYear ? FontWeight.w900 : FontWeight.bold)),
                           );
                         }).toList(),
                         onChanged: (int? newYear) {
-                          if (newYear != null) {
-                            setState(() => _selectedYear = newYear);
-                          }
+                          if (newYear != null) setState(() => _selectedYear = newYear);
                         },
                       ),
                     ),
@@ -988,8 +966,6 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
               ),
             ),
             const SizedBox(height: 16),
-
-            // Thống kê ca trực
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(16),
@@ -997,9 +973,6 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: Colors.grey.shade200),
-                boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2)),
-                ],
               ),
               child: Column(
                 children: [
@@ -1017,7 +990,6 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
               ),
             ),
             const SizedBox(height: 20),
-
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
@@ -1026,7 +998,6 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
               ),
             ),
             const SizedBox(height: 10),
-
             if (memberShiftsInYear.isEmpty)
               const Padding(
                 padding: EdgeInsets.all(20.0),
@@ -1073,7 +1044,7 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
                   }
 
                   return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(10),
@@ -1086,52 +1057,36 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
                           children: [
                             const Icon(Icons.event_available, color: Colors.teal, size: 18),
                             const SizedBox(width: 10),
-                            Text(dateStr, style: const TextStyle(fontWeight: FontWeight.w600)),
-                            if (shift.isSwapped) ...[
-                              const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Colors.amber.shade100,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  "Đổi thay ${shift.originalPerson}",
-                                  style: const TextStyle(color: Colors.brown, fontSize: 10, fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                            ],
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(dateStr, style: const TextStyle(fontWeight: FontWeight.w600)),
+                                if (shift.isSwapped)
+                                  Text("Đã đổi thay cho ${shift.originalPerson}", style: const TextStyle(color: Colors.brown, fontSize: 10, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
                           ],
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: Colors.teal.shade50,
-                            borderRadius: BorderRadius.circular(6),
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.swap_horiz, size: 14),
+                          label: const Text("Đổi ca", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.teal.shade50,
+                            foregroundColor: const Color(0xFF00796B),
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           ),
-                          child: const Text(
-                            "ĐẾN LƯỢT TRỰC",
-                            style: TextStyle(color: Colors.teal, fontSize: 11, fontWeight: FontWeight.bold),
-                          ),
+                          onPressed: () {
+                            Navigator.pop(context);
+                            widget.onSwapRequested(shift.date, widget.member.name);
+                          },
                         )
                       ],
                     ),
                   );
                 },
               ),
-
             const SizedBox(height: 25),
-            ElevatedButton.icon(
-              onPressed: () => Navigator.pop(context),
-              icon: const Icon(Icons.arrow_back),
-              label: const Text("QUAY LẠI", style: TextStyle(fontWeight: FontWeight.bold)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF00796B),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-              ),
-            ),
           ],
         ),
       ),
