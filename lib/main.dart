@@ -216,7 +216,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
   }
 }
 
-// ================= MÀN HÌNH ĐĂNG NHẬP RIÊNG BIỆT =================
+// ================= MÀN HÌNH ĐĂNG NHẬP =================
 class LoginScreen extends StatefulWidget {
   final Function(Member) onLoginSuccess;
 
@@ -266,7 +266,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _errorMsg = "");
 
-    // Nếu không phải admin và vẫn giữ pass 1111 thì bắt buộc đổi mật mã ngay
     if (!matched.isAdmin && inputPass == "1111") {
       _showForceChangePassword(matched);
     } else {
@@ -441,7 +440,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-// ================= MÀN HÌNH CHÍNH (ĐÃ ĐĂNG NHẬP) =================
+// ================= MÀN HÌNH CHÍNH =================
 class MainDutyScreen extends StatefulWidget {
   final Member currentUser;
   final VoidCallback onLogout;
@@ -735,7 +734,6 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     return list;
   }
 
-  // ================= TỰ ĐỔI MẬT MÃ CHỦ ĐỘNG =================
   void _showChangePasswordDialog() {
     final oldPassController = TextEditingController();
     final newPassController = TextEditingController();
@@ -810,7 +808,6 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     );
   }
 
-  // ================= XỬ LÝ HOÁN ĐỔI & HỦY CA =================
   void showTwoWaySwapDialog(BuildContext context, DateTime sourceDate, String sourcePerson) {
     final dateStr = "${sourceDate.day.toString().padLeft(2, '0')}/${sourceDate.month.toString().padLeft(2, '0')}/${sourceDate.year}";
     final cleanSourcePerson = _matchMemberName(sourcePerson);
@@ -1169,7 +1166,6 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                // Nút Hủy đổi ca
                                 if (currentDuty.isSwapped &&
                                     (widget.currentUser.isAdmin ||
                                      _matchMemberName(widget.currentUser.name) == _matchMemberName(currentDuty.assignedPerson) ||
@@ -1188,7 +1184,6 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                                       onPressed: () => _confirmCancelSwap(currentDuty.date, currentDuty.assignedPerson, currentDuty.originalPerson ?? ""),
                                     ),
                                   ),
-                                // Nút Đổi ca (chỉ hiện khi đúng ca của mình hoặc là Admin)
                                 if (widget.currentUser.isAdmin || _matchMemberName(widget.currentUser.name) == _matchMemberName(currentDuty.assignedPerson))
                                   ElevatedButton.icon(
                                     icon: const Icon(Icons.swap_horiz, size: 16),
@@ -1230,7 +1225,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
               ),
             ),
 
-            // ================= 3. DANH SÁCH 2 NĂM (104 TUẦN) GOM THEO THÁNG =================
+            // ================= 3. DANH SÁCH 2 NĂM GOM THEO THÁNG =================
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
               child: Column(
@@ -1271,10 +1266,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                         showMonthHeader = true;
                       }
 
-                      // Quyền Đổi: Người đang trực ca đó hoặc Admin
                       final bool canSwap = widget.currentUser.isAdmin || _matchMemberName(widget.currentUser.name) == _matchMemberName(m.name);
-
-                      // Quyền Hủy: Admin hoặc 2 người tham gia đổi
                       final bool canCancel = isSwapped &&
                           (widget.currentUser.isAdmin ||
                            _matchMemberName(widget.currentUser.name) == _matchMemberName(m.name) ||
@@ -1323,6 +1315,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                                     context,
                                     MaterialPageRoute(
                                       builder: (context) => YearRangeMemberDetailScreen(
+                                        currentUser: widget.currentUser, // TRUYỀN USER ĐANG ĐĂNG NHẬP
                                         member: m,
                                         members: UserDataStore.baseMembers,
                                         initialYear: _currentDate.year >= 2026 && _currentDate.year <= 2050 ? _currentDate.year : 2026,
@@ -1411,14 +1404,12 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                                             ),
                                           ),
                                         ),
-                                        // Nút Hủy ca
                                         if (canCancel)
                                           IconButton(
                                             icon: const Icon(Icons.undo, size: 20, color: Colors.redAccent),
                                             tooltip: "Hủy lượt đổi này",
                                             onPressed: () => _confirmCancelSwap(targetSat, m.name, originalName ?? ""),
                                           ),
-                                        // Nút Đổi ca
                                         if (!isHoliday && canSwap)
                                           IconButton(
                                             icon: const Icon(Icons.swap_horiz, size: 20, color: Color(0xFF00695C)),
@@ -1475,8 +1466,9 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
   }
 }
 
-// ================= MÀN HÌNH CHI TIẾT THEO NĂM =================
+// ================= MÀN HÌNH CHI TIẾT THEO NĂM (ĐÃ RÀNG BUỘC PHÂN QUYỀN) =================
 class YearRangeMemberDetailScreen extends StatefulWidget {
+  final Member currentUser; // LƯU THÔNG TIN USER ĐANG ĐĂNG NHẬP
   final Member member;
   final List<Member> members;
   final int initialYear;
@@ -1484,6 +1476,7 @@ class YearRangeMemberDetailScreen extends StatefulWidget {
 
   const YearRangeMemberDetailScreen({
     super.key,
+    required this.currentUser,
     required this.member,
     required this.members,
     required this.initialYear,
@@ -1641,6 +1634,10 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
                   final dateStr = "${shift.date.day.toString().padLeft(2, '0')}/${shift.date.month.toString().padLeft(2, '0')}/${shift.date.year}";
                   final isPast = shift.date.isBefore(todayStart);
 
+                  // RÀNG BUỘC QUYỀN ĐỔI CA TRONG TRANG CHI TIẾT
+                  final bool canSwap = widget.currentUser.isAdmin || 
+                      _MainDutyScreenState._matchMemberName(widget.currentUser.name) == _MainDutyScreenState._matchMemberName(shift.assignedPerson);
+
                   if (shift.isHoliday) {
                     return Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -1674,7 +1671,7 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
                             ),
                           ],
                         ),
-                        if (!isPast)
+                        if (!isPast && canSwap) // CHỈ HIỆN NÚT NẾU LÀ ADMIN HOẶC CHÍNH CHỦ
                           ElevatedButton.icon(
                             icon: const Icon(Icons.swap_horiz, size: 14),
                             label: const Text("Đổi ca", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
@@ -1684,7 +1681,7 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
                               widget.onSwapRequested(shift.date, widget.member.name);
                             },
                           )
-                        else
+                        else if (isPast)
                           Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3), decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(4)), child: const Text("ĐÃ QUA", style: TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold)))
                       ],
                     ),
