@@ -239,10 +239,16 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     return input.trim();
   }
 
-  // Hàm tải danh sách ca đổi (Hỗ trợ timeout 10 giây và kiểm tra dữ liệu an toàn trên Android)
+  // Tải danh sách ca đổi với cấu hình follow redirects đầy đủ cho Android Native
   Future<void> _fetchSwappedShifts() async {
     try {
-      final res = await http.get(Uri.parse(scriptApiUrl)).timeout(const Duration(seconds: 10));
+      final client = http.Client();
+      final request = http.Request('GET', Uri.parse(scriptApiUrl))
+        ..followRedirects = true
+        ..maxRedirects = 5;
+      final streamedResponse = await client.send(request).timeout(const Duration(seconds: 10));
+      final res = await http.Response.fromStream(streamedResponse);
+
       if (res.statusCode == 200 && res.body.isNotEmpty) {
         final decoded = jsonDecode(res.body);
         if (decoded["status"] == "success" && decoded["data"] != null) {
@@ -576,52 +582,60 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     );
   }
 
-  // Hàm gửi yêu cầu đổi ca (Hỗ trợ Redirect 302 trên Android và cập nhật tức thì)
+  // Gửi lệnh đổi ca chuẩn Android Native (tự động theo chuyển hướng 302 của Google Apps Script)
   Future<void> sendTwoWaySwapRequest(DateTime d1, String p1, DateTime d2, String p2, String note) async {
     setState(() => _isLoading = true);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Đang ghi nhận đổi ca lên Google Sheets..."), duration: Duration(seconds: 2)),
+      const SnackBar(content: Text("Đang gửi yêu cầu lên Google Sheets..."), duration: Duration(seconds: 2)),
     );
 
     final sD1 = "${d1.year}-${d1.month.toString().padLeft(2, '0')}-${d1.day.toString().padLeft(2, '0')}";
     final sD2 = "${d2.year}-${d2.month.toString().padLeft(2, '0')}-${d2.day.toString().padLeft(2, '0')}";
 
-    final url = Uri.parse(scriptApiUrl).replace(queryParameters: {
+    final queryParams = {
       "action": "swap",
       "ngay1": sD1,
       "nguoi1": p1,
       "ngay2": sD2,
       "nguoi2": p2,
       "ghiChu": note.isEmpty ? "Đổi ca qua App" : note,
-    });
+    };
+
+    final uri = Uri.parse(scriptApiUrl).replace(queryParameters: queryParams);
 
     try {
-      // Cập nhật ngay tại máy để phản hồi ngay trên màn hình
-      setState(() {
-        swapShifts[sD1] = {"nguoiGoc": p1, "nguoiDoi": p2};
-        swapShifts[sD2] = {"nguoiGoc": p2, "nguoiDoi": p1};
-      });
+      final client = http.Client();
+      final request = http.Request('GET', uri)
+        ..followRedirects = true
+        ..maxRedirects = 5;
+      final streamedResponse = await client.send(request).timeout(const Duration(seconds: 12));
+      final response = await http.Response.fromStream(streamedResponse);
 
-      final res = await http.get(url).timeout(const Duration(seconds: 10));
+      debugPrint("Google Sheets Response Code: ${response.statusCode}");
+      debugPrint("Google Sheets Response Body: ${response.body}");
 
-      // Google Apps Script trên Android trả về 200 hoặc 302 đều là ghi nhận thành công
-      if (res.statusCode == 200 || res.statusCode == 302) {
+      if (response.statusCode == 200) {
+        setState(() {
+          swapShifts[sD1] = {"nguoiGoc": p1, "nguoiDoi": p2};
+          swapShifts[sD2] = {"nguoiGoc": p2, "nguoiDoi": p1};
+        });
+
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Hoán đổi ca thành công!"), backgroundColor: Colors.teal),
+          const SnackBar(content: Text("Hoán đổi ca thành công trên Google Sheets!"), backgroundColor: Colors.teal),
         );
-        await Future.delayed(const Duration(seconds: 2));
+
+        await Future.delayed(const Duration(seconds: 1));
         await _fetchSwappedShifts();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Mã phản hồi từ Google: ${res.statusCode}"), backgroundColor: Colors.orange),
+          SnackBar(content: Text("Google Sheets phản hồi: Mã ${response.statusCode}"), backgroundColor: Colors.red),
         );
       }
     } catch (e) {
-      debugPrint("Ghi nhận đổi ca: $e");
+      debugPrint("Lỗi gửi đổi ca: $e");
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Đã gửi yêu cầu đổi ca lên hệ thống!"), backgroundColor: Colors.teal),
+        SnackBar(content: Text("Lỗi gửi dữ liệu: $e"), backgroundColor: Colors.red),
       );
-      await _fetchSwappedShifts();
     }
 
     if (mounted) {
