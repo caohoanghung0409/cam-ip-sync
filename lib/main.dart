@@ -144,7 +144,12 @@ class NoiDayApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'NỔI DẬY',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF00796B)),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF00695C),
+          primary: const Color(0xFF00695C),
+          surface: const Color(0xFFF6F8FA),
+        ),
+        scaffoldBackgroundColor: const Color(0xFFF6F8FA),
         useMaterial3: true,
       ),
       home: const MainDutyScreen(),
@@ -161,10 +166,10 @@ class MainDutyScreen extends StatefulWidget {
 
 class _MainDutyScreenState extends State<MainDutyScreen> {
   static final List<Member> baseMembers = const [
-    Member(name: "NGUYỄN THỊ SÂM", shortName: "SÂM", themeColor: Colors.deepOrange),
-    Member(name: "NGUYỄN NGỌC HOÀNG MINH", shortName: "MINH", themeColor: Colors.blue),
-    Member(name: "LÂM TỐ TRINH", shortName: "TRINH", themeColor: Colors.purple),
-    Member(name: "CAO HOÀNG HƯNG", shortName: "HƯNG", themeColor: Colors.teal),
+    Member(name: "NGUYỄN THỊ SÂM", shortName: "SÂM", themeColor: Color(0xFFE65100)),
+    Member(name: "NGUYỄN NGỌC HOÀNG MINH", shortName: "MINH", themeColor: Color(0xFF1565C0)),
+    Member(name: "LÂM TỐ TRINH", shortName: "TRINH", themeColor: Color(0xFF6A1B9A)),
+    Member(name: "CAO HOÀNG HƯNG", shortName: "HƯNG", themeColor: Color(0xFF00695C)),
   ];
 
   static final DateTime baseSaturday = DateTime(2026, 10, 17);
@@ -177,6 +182,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
 
   DateTime _currentDate = DateTime.now();
   bool _isLoading = false;
+  String _filterMember = "ALL"; // Bộ lọc thành viên: ALL hoặc Tên/Tên viết tắt
 
   static final Map<String, String> holidaysMap = {
     "1-1": "Tết Dương Lịch",
@@ -239,7 +245,6 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     return input.trim();
   }
 
-  // Tải danh sách ca đổi với cấu hình follow redirects đầy đủ cho Android Native
   Future<void> _fetchSwappedShifts() async {
     try {
       final client = http.Client();
@@ -279,26 +284,20 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     }
   }
 
-  // HÀM CHUẨN HÓA NGÀY THÔNG MINH: TỰ ĐỘNG HIỂU MỌI ĐỊNH DẠNG (., /, -, khoảng trắng,...)
   static String _normalizeDate(String input) {
     try {
       String clean = input.replaceAll("'", "").replaceAll('"', '').trim();
       if (clean.isEmpty) return "";
-
       if (clean.contains('T')) clean = clean.split('T')[0].trim();
 
-      // Dùng Regex trích xuất tất cả các cụm số nguyên
       final matches = RegExp(r'\d+').allMatches(clean).map((m) => m.group(0)!).toList();
       if (matches.length >= 3) {
-        // Trường hợp YYYY/MM/DD (hoặc YYYY-MM-DD, YYYY.MM.DD)
         if (matches[0].length == 4) {
           String y = matches[0];
           String m = matches[1].padLeft(2, '0');
           String d = matches[2].padLeft(2, '0');
           return "$y-$m-$d";
-        }
-        // Trường hợp DD/MM/YYYY (hoặc DD-MM-YYYY, DD.MM.YYYY)
-        else if (matches[2].length == 4) {
+        } else if (matches[2].length == 4) {
           String d = matches[0].padLeft(2, '0');
           String m = matches[1].padLeft(2, '0');
           String y = matches[2];
@@ -381,13 +380,14 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     );
   }
 
-  List<Map<String, dynamic>> _getRotatedMembersWithDate(DateTime now) {
+  // Mở rộng hiển thị 12 tuần (khoảng 3 tháng) và gom nhóm theo tháng
+  List<Map<String, dynamic>> _getUpcomingShiftsList(DateTime now, {int totalWeeks = 12}) {
     DateTime thisSaturday = _getThisSaturday(now);
     int diffWeeks = _calculateCurrentWeekDiff(now);
     int startIndex = (diffWeeks % baseMembers.length + baseMembers.length) % baseMembers.length;
 
-    List<Map<String, dynamic>> rotated = [];
-    for (int i = 0; i < baseMembers.length; i++) {
+    List<Map<String, dynamic>> shifts = [];
+    for (int i = 0; i < totalWeeks; i++) {
       final baseMember = baseMembers[(startIndex + i) % baseMembers.length];
       final targetSat = thisSaturday.add(Duration(days: i * 7));
       final holiday = checkHoliday(targetSat);
@@ -407,15 +407,18 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
         originalName = baseMember.name;
       }
 
-      String timelineText = (i == 0) ? "Trực tuần này" : (i == 1 ? "Tuần tới" : "$i tuần nữa");
+      String timelineText = (i == 0) ? "Tuần này" : (i == 1 ? "Tuần tới" : "$i tuần nữa");
       final dateStr = "${targetSat.day.toString().padLeft(2, '0')}/${targetSat.month.toString().padLeft(2, '0')}/${targetSat.year}";
+      final monthGroup = "Tháng ${targetSat.month}/${targetSat.year}";
 
-      rotated.add({
+      shifts.add({
+        "index": i + 1,
         "member": currentMember,
         "baseMember": baseMember,
         "date": targetSat,
         "dateKey": dateKey,
         "dateStr": dateStr,
+        "monthGroup": monthGroup,
         "timelineText": timelineText,
         "isHoliday": holiday != null,
         "holidayName": holiday,
@@ -423,7 +426,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
         "originalName": originalName,
       });
     }
-    return rotated;
+    return shifts;
   }
 
   static List<DateTime> getUpcomingSaturdaysForMember(String memberName, DateTime fromDate) {
@@ -468,12 +471,12 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
         builder: (context, setDialogState) {
           return AlertDialog(
             backgroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             title: const Row(
               children: [
-                Icon(Icons.swap_horiz, color: Color(0xFF00796B), size: 28),
+                Icon(Icons.swap_horizontal_circle_outlined, color: Color(0xFF00695C), size: 26),
                 SizedBox(width: 8),
-                Text("HOÁN ĐỔI CA TRỰC", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: Color(0xFF00796B))),
+                Text("HOÁN ĐỔI CA TRỰC", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Color(0xFF00695C))),
               ],
             ),
             content: SingleChildScrollView(
@@ -482,18 +485,22 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(color: Colors.teal.shade50, borderRadius: BorderRadius.circular(8)),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE0F2F1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text("Ca của bạn: $cleanSourcePerson", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF004D40))),
-                        Text("Ngày: Thứ Bảy, $dateStr", style: const TextStyle(fontSize: 12, color: Colors.black87)),
+                        Text("Ca ban đầu: $cleanSourcePerson", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF004D40))),
+                        const SizedBox(height: 2),
+                        Text("Thứ Bảy, $dateStr", style: const TextStyle(fontSize: 12, color: Colors.black87)),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 14),
-                  const Text("1. Chọn người muốn đổi ca cùng:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  const SizedBox(height: 16),
+                  const Text("1. Người muốn đổi cùng:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.blueGrey)),
                   const SizedBox(height: 6),
                   DropdownButtonFormField<Member>(
                     value: targetMember,
@@ -518,7 +525,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                     },
                   ),
                   const SizedBox(height: 14),
-                  Text("2. Chọn ca trực của ${targetMember.shortName} để đổi:", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  Text("2. Chọn ca trực của ${targetMember.shortName}:", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.blueGrey)),
                   const SizedBox(height: 6),
                   if (targetDates.isEmpty)
                     const Text("Không tìm thấy ngày trực sắp tới", style: TextStyle(color: Colors.red, fontSize: 12))
@@ -540,12 +547,12 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                       },
                     ),
                   const SizedBox(height: 14),
-                  const Text("Lý do đổi (tùy chọn):", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  const Text("3. Lý do đổi (tùy chọn):", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.blueGrey)),
                   const SizedBox(height: 6),
                   TextField(
                     controller: reasonController,
                     decoration: InputDecoration(
-                      hintText: "Ví dụ: Bận việc cá nhân...",
+                      hintText: "Ví dụ: Đi công tác, bận việc cá nhân...",
                       hintStyle: const TextStyle(fontSize: 12, color: Colors.grey),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
@@ -555,11 +562,15 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
               ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("HỦY", style: TextStyle(color: Colors.grey))),
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("HỦY", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold))),
               ElevatedButton.icon(
                 icon: const Icon(Icons.check, size: 16),
-                label: const Text("XÁC NHẬN HOÁN ĐỔI", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00796B), foregroundColor: Colors.white),
+                label: const Text("XÁC NHẬN", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF00695C),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
                 onPressed: () async {
                   if (selectedTargetDate == null) return;
                   Navigator.pop(ctx);
@@ -573,7 +584,6 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     );
   }
 
-  // Gửi lệnh đổi ca chuẩn Android Native (tự động theo chuyển hướng 302 của Google Apps Script)
   Future<void> sendTwoWaySwapRequest(DateTime d1, String p1, DateTime d2, String p2, String note) async {
     setState(() => _isLoading = true);
     ScaffoldMessenger.of(context).showSnackBar(
@@ -601,9 +611,6 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
         ..maxRedirects = 5;
       final streamedResponse = await client.send(request).timeout(const Duration(seconds: 12));
       final response = await http.Response.fromStream(streamedResponse);
-
-      debugPrint("Google Sheets Response Code: ${response.statusCode}");
-      debugPrint("Google Sheets Response Body: ${response.body}");
 
       if (response.statusCode == 200) {
         setState(() {
@@ -637,28 +644,32 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
   @override
   Widget build(BuildContext context) {
     final currentDuty = _calculateThisWeekDuty(_currentDate);
-    final rotatedList = _getRotatedMembersWithDate(_currentDate);
+    final allUpcoming = _getUpcomingShiftsList(_currentDate, totalWeeks: 12);
+
+    // Lọc theo người được chọn
+    final displayedShifts = (_filterMember == "ALL")
+        ? allUpcoming
+        : allUpcoming.where((item) {
+            final Member m = item["member"];
+            return m.shortName == _filterMember || m.name == _filterMember;
+          }).toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6F9),
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: const Color(0xFF00796B),
+        backgroundColor: const Color(0xFF00695C),
         leading: const Padding(
-          padding: EdgeInsets.all(10.0),
-          child: CircleAvatar(
-            backgroundColor: Colors.white24,
-            child: Icon(Icons.flash_on, color: Colors.amber, size: 20),
-          ),
+          padding: EdgeInsets.all(12.0),
+          child: Icon(Icons.shield_outlined, color: Colors.amberAccent, size: 24),
         ),
         title: const Text(
-          "NỔI DẬY - LỊCH TRỰC",
-          style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white, fontSize: 18, letterSpacing: 0.5),
+          "NỔI DẬY • LỊCH TRỰC",
+          style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white, fontSize: 17, letterSpacing: 1),
         ),
         centerTitle: true,
         actions: [
           IconButton(
-            tooltip: "Đồng bộ & Làm mới",
+            tooltip: "Làm mới dữ liệu",
             icon: _isLoading
                 ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                 : const Icon(Icons.refresh, color: Colors.white),
@@ -669,108 +680,170 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
+            // ================= 1. BANNER TRỰC TUẦN NÀY (CARD PREMIUM) =================
             Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(18),
-              margin: const EdgeInsets.all(16),
+              margin: const EdgeInsets.fromLTRB(16, 16, 16, 10),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF00796B), Color(0xFF004D40)],
+                borderRadius: BorderRadius.circular(20),
+                gradient: LinearGradient(
+                  colors: currentDuty.isHoliday
+                      ? [const Color(0xFFC62828), const Color(0xFF8E0000)]
+                      : [const Color(0xFF00695C), const Color(0xFF004D40)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-                borderRadius: BorderRadius.circular(16),
                 boxShadow: [
-                  BoxShadow(color: Colors.teal.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4)),
+                  BoxShadow(
+                    color: (currentDuty.isHoliday ? Colors.red : Colors.teal).withOpacity(0.35),
+                    blurRadius: 14,
+                    offset: const Offset(0, 6),
+                  ),
                 ],
               ),
+              child: Stack(
+                children: [
+                  Positioned(
+                    right: -20,
+                    bottom: -20,
+                    child: Icon(
+                      currentDuty.isHoliday ? Icons.beach_access : Icons.event_available,
+                      size: 130,
+                      color: Colors.white.withOpacity(0.08),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(18),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Row(
+                                children: [
+                                  CircleAvatar(radius: 3, backgroundColor: Colors.amberAccent),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    "TRỰC THỨ BẢY TUẦN NÀY",
+                                    style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: currentDuty.isHoliday ? Colors.white : Colors.amberAccent,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                "${currentDuty.date.day.toString().padLeft(2, '0')}/${currentDuty.date.month.toString().padLeft(2, '0')}/${currentDuty.date.year}",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 12,
+                                  color: currentDuty.isHoliday ? const Color(0xFFC62828) : Colors.black87,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        Text(
+                          currentDuty.isHoliday ? "${currentDuty.assignedPerson} (MIỄN TRỰC)" : currentDuty.assignedPerson,
+                          style: const TextStyle(color: Colors.white, fontSize: 21, fontWeight: FontWeight.w900, letterSpacing: 0.2),
+                        ),
+                        const SizedBox(height: 4),
+                        if (currentDuty.isSwapped)
+                          Container(
+                            margin: const EdgeInsets.symmetric(vertical: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.amberAccent.withOpacity(0.25),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              "🔄 Đã đổi: trực thay cho ${currentDuty.originalPerson}",
+                              style: const TextStyle(color: Colors.amberAccent, fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        Text(
+                          currentDuty.isHoliday ? "Nghỉ lễ: ${currentDuty.holidayName} (Được nghỉ)" : "Đến lượt cày cuốc, chuẩn bị tinh thần!",
+                          style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 13),
+                        ),
+                        if (!currentDuty.isHoliday) ...[
+                          const SizedBox(height: 14),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: ElevatedButton.icon(
+                              icon: const Icon(Icons.swap_horiz, size: 16),
+                              label: const Text("Đổi ca tuần này", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: const Color(0xFF00695C),
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                              ),
+                              onPressed: () => showTwoWaySwapDialog(context, currentDuty.date, currentDuty.assignedPerson),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // ================= 2. BỘ LỌC THEO THÀNH VIÊN (CHIP FILTER) =================
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              height: 40,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: [
+                  _buildFilterChip("Tất cả", "ALL"),
+                  const SizedBox(width: 8),
+                  ...baseMembers.map((m) => Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: _buildFilterChip(m.shortName, m.shortName, color: m.themeColor),
+                      )),
+                ],
+              ),
+            ),
+
+            // ================= 3. DANH SÁCH CÁC TUẦN TIẾP THEO (TIMELINE GOM THEO THÁNG) =================
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        "TRỰC THỨ BẢY TUẦN NÀY",
-                        style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
+                      Text(
+                        _filterMember == "ALL" ? "LỊCH TRỰC 12 TUẦN TỚI" : "LỊCH CỦA ${_filterMember.toUpperCase()}",
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: Colors.blueGrey, letterSpacing: 0.5),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: currentDuty.isHoliday ? Colors.redAccent : Colors.amber,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          "${currentDuty.date.day.toString().padLeft(2, '0')}/${currentDuty.date.month.toString().padLeft(2, '0')}/${currentDuty.date.year}",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                            color: currentDuty.isHoliday ? Colors.white : Colors.black87,
-                          ),
-                        ),
-                      )
+                      Text(
+                        "${displayedShifts.length} ngày",
+                        style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 10),
-                  Text(
-                    currentDuty.isHoliday ? "${currentDuty.assignedPerson} (MIỄN TRỰC)" : currentDuty.assignedPerson,
-                    style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900),
-                  ),
-                  const SizedBox(height: 4),
-                  if (currentDuty.isSwapped)
-                    Container(
-                      margin: const EdgeInsets.symmetric(vertical: 4),
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: Colors.amber.withOpacity(0.25),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        "🔄 Đã đổi ca: ${currentDuty.assignedPerson} trực thay ${currentDuty.originalPerson}",
-                        style: const TextStyle(color: Colors.amber, fontSize: 12, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  Text(
-                    currentDuty.isHoliday ? "Trùng dịp nghỉ: ${currentDuty.holidayName} (Được nghỉ)" : "Đến lượt cày cuốc, chuẩn bị tinh thần!",
-                    style: const TextStyle(color: Colors.white70, fontSize: 12),
-                  ),
-                  if (!currentDuty.isHoliday) ...[
-                    const SizedBox(height: 12),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: ElevatedButton.icon(
-                        icon: const Icon(Icons.swap_horiz, size: 16),
-                        label: const Text("Đổi ca tuần này", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: const Color(0xFF00796B),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                        ),
-                        onPressed: () => showTwoWaySwapDialog(context, currentDuty.date, currentDuty.assignedPerson),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "THỨ TỰ XOAY TUA (KÈM NGÀY TRỰC CỤ THỂ)",
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.blueGrey),
-                  ),
-                  const SizedBox(height: 10),
-                  ListView.separated(
+                  ListView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    itemCount: rotatedList.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    itemCount: displayedShifts.length,
                     itemBuilder: (context, idx) {
-                      final item = rotatedList[idx];
+                      final item = displayedShifts[idx];
                       final Member m = item["member"];
                       final String timeline = item["timelineText"];
                       final String dateStr = item["dateStr"];
@@ -779,102 +852,212 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                       final String? holidayName = item["holidayName"];
                       final bool isSwapped = item["isSwapped"];
                       final String? originalName = item["originalName"];
-                      final bool isCurrentWeek = (idx == 0);
+                      final String monthGroup = item["monthGroup"];
 
-                      return Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(12),
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => YearRangeMemberDetailScreen(
-                                  member: m,
-                                  members: _MainDutyScreenState.baseMembers,
-                                  initialYear: _currentDate.year >= 2026 && _currentDate.year <= 2050 ? _currentDate.year : 2026,
-                                  onSwapRequested: (d, p) => showTwoWaySwapDialog(context, d, p),
-                                ),
+                      // Kiểm tra xem có cần hiện thanh chia Tháng không
+                      bool showMonthHeader = false;
+                      if (idx == 0 || displayedShifts[idx - 1]["monthGroup"] != monthGroup) {
+                        showMonthHeader = true;
+                      }
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (showMonthHeader)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 14, bottom: 8),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: Colors.blueGrey.shade100,
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Text(
+                                      monthGroup.toUpperCase(),
+                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Colors.blueGrey.shade800),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(child: Divider(color: Colors.grey.shade300, thickness: 1)),
+                                ],
                               ),
-                            ).then((_) => _initData());
-                          },
-                          child: Ink(
-                            padding: const EdgeInsets.all(14),
+                            ),
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 8),
                             decoration: BoxDecoration(
                               color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: isCurrentWeek ? Colors.deepOrange.shade300 : Colors.grey.shade200,
-                                width: isCurrentWeek ? 1.5 : 1,
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                CircleAvatar(
-                                  backgroundColor: isCurrentWeek ? Colors.deepOrange : m.themeColor.withOpacity(0.15),
-                                  foregroundColor: isCurrentWeek ? Colors.white : m.themeColor,
-                                  radius: 20,
-                                  child: Text("${idx + 1}", style: const TextStyle(fontWeight: FontWeight.bold)),
-                                ),
-                                const SizedBox(width: 14),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Text(
-                                            m.name,
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 15,
-                                              color: isCurrentWeek ? Colors.deepOrange.shade900 : Colors.black87,
-                                            ),
-                                          ),
-                                          if (isSwapped) ...[
-                                            const SizedBox(width: 6),
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                              decoration: BoxDecoration(color: Colors.amber.shade100, borderRadius: BorderRadius.circular(4)),
-                                              child: const Text("ĐÃ ĐỔI CA", style: TextStyle(color: Colors.brown, fontSize: 10, fontWeight: FontWeight.bold)),
-                                            ),
-                                          ],
-                                        ],
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        isHoliday
-                                            ? "$timeline - $dateStr (Miễn trực: $holidayName)"
-                                            : (isSwapped ? "$timeline - $dateStr (Đổi thay cho $originalName)" : "$timeline - $dateStr"),
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: isHoliday ? Colors.red : (isCurrentWeek ? Colors.deepOrange : Colors.grey.shade700),
-                                          fontWeight: (isCurrentWeek || isHoliday) ? FontWeight.bold : FontWeight.normal,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                if (!isHoliday)
-                                  IconButton(
-                                    icon: const Icon(Icons.swap_horiz, size: 22, color: Color(0xFF00796B)),
-                                    tooltip: "Đổi ca",
-                                    onPressed: () => showTwoWaySwapDialog(context, targetSat, m.name),
-                                  )
-                                else
-                                  const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: Colors.grey.shade200),
+                              boxShadow: [
+                                BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2)),
                               ],
                             ),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(14),
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => YearRangeMemberDetailScreen(
+                                        member: m,
+                                        members: _MainDutyScreenState.baseMembers,
+                                        initialYear: _currentDate.year >= 2026 && _currentDate.year <= 2050 ? _currentDate.year : 2026,
+                                        onSwapRequested: (d, p) => showTwoWaySwapDialog(context, d, p),
+                                      ),
+                                    ),
+                                  ).then((_) => _initData());
+                                },
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(14),
+                                  child: IntrinsicHeight(
+                                    child: Row(
+                                      children: [
+                                        // Vạch màu đại diện cá nhân ở mép trái
+                                        Container(
+                                          width: 5,
+                                          color: isHoliday ? Colors.red : m.themeColor,
+                                        ),
+                                        const SizedBox(width: 12),
+                                        CircleAvatar(
+                                          backgroundColor: m.themeColor.withOpacity(0.12),
+                                          foregroundColor: m.themeColor,
+                                          radius: 18,
+                                          child: Text(
+                                            m.shortName[0],
+                                            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(vertical: 12),
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Row(
+                                                  children: [
+                                                    Text(
+                                                      m.name,
+                                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87),
+                                                    ),
+                                                    if (isSwapped) ...[
+                                                      const SizedBox(width: 6),
+                                                      Container(
+                                                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                                        decoration: BoxDecoration(color: Colors.amber.shade100, borderRadius: BorderRadius.circular(4)),
+                                                        child: const Text("ĐÃ ĐỔI", style: TextStyle(color: Colors.brown, fontSize: 9, fontWeight: FontWeight.bold)),
+                                                      ),
+                                                    ],
+                                                  ],
+                                                ),
+                                                const SizedBox(height: 3),
+                                                Row(
+                                                  children: [
+                                                    Container(
+                                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.grey.shade100,
+                                                        borderRadius: BorderRadius.circular(4),
+                                                      ),
+                                                      child: Text(
+                                                        timeline,
+                                                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.blueGrey.shade700),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 6),
+                                                    Text(
+                                                      dateStr,
+                                                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade800),
+                                                    ),
+                                                  ],
+                                                ),
+                                                if (isHoliday)
+                                                  Padding(
+                                                    padding: const EdgeInsets.only(top: 3),
+                                                    child: Text(
+                                                      "Miễn trực: $holidayName",
+                                                      style: const TextStyle(color: Colors.red, fontSize: 11, fontWeight: FontWeight.bold),
+                                                    ),
+                                                  )
+                                                else if (isSwapped)
+                                                  Padding(
+                                                    padding: const EdgeInsets.only(top: 3),
+                                                    child: Text(
+                                                      "Đổi thay cho $originalName",
+                                                      style: const TextStyle(color: Colors.brown, fontSize: 11, fontWeight: FontWeight.w600),
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                        if (!isHoliday)
+                                          IconButton(
+                                            icon: const Icon(Icons.swap_horiz, size: 20, color: Color(0xFF00695C)),
+                                            tooltip: "Đổi ca",
+                                            onPressed: () => showTwoWaySwapDialog(context, targetSat, m.name),
+                                          )
+                                        else
+                                          const Padding(
+                                            padding: EdgeInsets.only(right: 14),
+                                            child: Icon(Icons.beach_access, size: 18, color: Colors.redAccent),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
+                        ],
                       );
                     },
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 20),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterChip(String label, String value, {Color? color}) {
+    final bool isSelected = _filterMember == value;
+    final chipColor = color ?? const Color(0xFF00695C);
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: () {
+        setState(() {
+          _filterMember = value;
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? chipColor : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? chipColor : Colors.grey.shade300,
+            width: isSelected ? 1.5 : 1,
+          ),
+          boxShadow: isSelected
+              ? [BoxShadow(color: chipColor.withOpacity(0.25), blurRadius: 6, offset: const Offset(0, 2))]
+              : [],
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: isSelected ? Colors.white : Colors.black87,
+          ),
         ),
       ),
     );
@@ -956,10 +1139,10 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
     final todayStart = DateTime(now.year, now.month, now.day);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: const Color(0xFFF6F8FA),
       appBar: AppBar(
         title: Text(widget.member.name, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-        backgroundColor: const Color(0xFF00796B),
+        backgroundColor: const Color(0xFF00695C),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
@@ -973,7 +1156,7 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF00796B), Color(0xFF004D40)],
+                  colors: [Color(0xFF00695C), Color(0xFF004D40)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -990,7 +1173,7 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
                       Container(
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(8)),
-                        child: const Icon(Icons.calendar_month, color: Colors.amber, size: 22),
+                        child: const Icon(Icons.calendar_month, color: Colors.amberAccent, size: 22),
                       ),
                       const SizedBox(width: 10),
                       const Column(
@@ -1008,8 +1191,8 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<int>(
                         value: _selectedYear,
-                        icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF00796B), size: 28),
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF00796B)),
+                        icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF00695C), size: 28),
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF00695C)),
                         dropdownColor: Colors.white,
                         items: _years.map((int year) {
                           return DropdownMenuItem<int>(
@@ -1148,7 +1331,7 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
                             label: const Text("Đổi ca", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.teal.shade50,
-                              foregroundColor: const Color(0xFF00796B),
+                              foregroundColor: const Color(0xFF00695C),
                               elevation: 0,
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             ),
