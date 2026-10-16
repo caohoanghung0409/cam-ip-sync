@@ -72,7 +72,7 @@ class LunarDate {
     c1 += 0.0104 * sin(2 * f * dr) - 0.0051 * sin((m + mpr) * dr);
     c1 -= 0.0074 * sin((m - mpr) * dr) + 0.0004 * sin((2 * f + m) * dr);
     c1 -= 0.0004 * sin((2 * f - m) * dr) - 0.0006 * sin((2 * f + mpr) * dr);
-    c1 += 0.0104 * sin((2 * f - mpr) * dr) + 0.0005 * sin((2 * mpr + m) * dr);
+    c1 += 0.0010 * sin((2 * f - mpr) * dr) + 0.0005 * sin((2 * mpr + m) * dr);
     return jde + c1;
   }
 
@@ -229,7 +229,6 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     } catch (_) {}
   }
 
-  // Chuẩn hóa tên thành viên để luôn match chính xác
   static String _matchMemberName(String input) {
     String clean = input.trim().toUpperCase();
     for (var m in baseMembers) {
@@ -242,7 +241,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
 
   Future<void> _fetchSwappedShifts() async {
     try {
-      final res = await http.get(Uri.parse(scriptApiUrl)).timeout(const Duration(seconds: 4));
+      final res = await http.get(Uri.parse(scriptApiUrl)).timeout(const Duration(seconds: 5));
       if (res.statusCode == 200) {
         final decoded = jsonDecode(res.body);
         if (decoded["status"] == "success" && decoded["data"] != null) {
@@ -253,7 +252,6 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
             String p1 = _matchMemberName(item["nguoi1"]?.toString() ?? "");
             String p2 = _matchMemberName(item["nguoi2"]?.toString() ?? "");
 
-            // Ghi nhận đổi ca 2 chiều: Ngày 1 chuyển cho p2, Ngày 2 chuyển cho p1
             if (d1.isNotEmpty && p2.isNotEmpty) {
               parsedSwap[d1] = {"nguoiGoc": p1, "nguoiDoi": p2};
             }
@@ -261,21 +259,33 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
               parsedSwap[d2] = {"nguoiGoc": p2, "nguoiDoi": p1};
             }
           }
-          swapShifts = parsedSwap;
+
+          if (mounted) {
+            setState(() {
+              swapShifts = parsedSwap;
+            });
+          }
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint("Lỗi tải ca đổi: $e");
+    }
   }
 
   static String _normalizeDate(String input) {
     try {
-      String clean = input.replaceAll('"', '').trim();
-      if (clean.contains('T')) {
-        clean = clean.split('T')[0];
-      }
+      String clean = input.replaceAll("'", "").replaceAll('"', '').trim();
+      if (clean.isEmpty) return "";
+
+      if (clean.contains('T')) clean = clean.split('T')[0].trim();
+      if (clean.contains(' ')) clean = clean.split(' ')[0].trim();
+
       if (clean.contains('/')) {
         final parts = clean.split('/');
         if (parts.length == 3) {
+          if (parts[0].trim().length == 4) {
+            return "${parts[0].trim()}-${parts[1].trim().padLeft(2, '0')}-${parts[2].trim().padLeft(2, '0')}";
+          }
           String d = parts[0].trim().padLeft(2, '0');
           String m = parts[1].trim().padLeft(2, '0');
           String y = parts[2].trim();
@@ -284,10 +294,17 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
       } else if (clean.contains('-')) {
         final parts = clean.split('-');
         if (parts.length == 3) {
-          String y = parts[0].trim();
-          String m = parts[1].trim().padLeft(2, '0');
-          String d = parts[2].trim().padLeft(2, '0');
-          return "$y-$m-$d";
+          if (parts[0].trim().length == 4) {
+            String y = parts[0].trim();
+            String m = parts[1].trim().padLeft(2, '0');
+            String d = parts[2].trim().padLeft(2, '0');
+            return "$y-$m-$d";
+          } else {
+            String d = parts[0].trim().padLeft(2, '0');
+            String m = parts[1].trim().padLeft(2, '0');
+            String y = parts[2].trim();
+            return "$y-$m-$d";
+          }
         }
       }
     } catch (_) {}
@@ -411,7 +428,6 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     return rotated;
   }
 
-  // Lấy các ngày thứ Bảy trực sắp tới của 1 người
   static List<DateTime> getUpcomingSaturdaysForMember(String memberName, DateTime fromDate) {
     List<DateTime> list = [];
     DateTime sat = fromDate;
@@ -438,7 +454,6 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     return list;
   }
 
-  // Hộp thoại đổi ca chọn ngày trực của người kia
   void showTwoWaySwapDialog(BuildContext context, DateTime sourceDate, String sourcePerson) {
     final dateStr = "${sourceDate.day.toString().padLeft(2, '0')}/${sourceDate.month.toString().padLeft(2, '0')}/${sourceDate.year}";
     final cleanSourcePerson = _matchMemberName(sourcePerson);
@@ -581,7 +596,6 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     try {
       final res = await http.get(url).timeout(const Duration(seconds: 6));
       if (res.statusCode == 200) {
-        // Cập nhật ngay bộ nhớ cục bộ để đổi tức thì trên màn hình
         setState(() {
           swapShifts[sD1] = {"nguoiGoc": p1, "nguoiDoi": p2};
           swapShifts[sD2] = {"nguoiGoc": p2, "nguoiDoi": p1};
@@ -590,6 +604,8 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Hoán đổi ca thành công!"), backgroundColor: Colors.teal),
         );
+
+        await Future.delayed(const Duration(seconds: 1));
         await _fetchSwappedShifts();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1046,8 +1062,6 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
                 itemBuilder: (context, idx) {
                   final shift = memberShiftsInYear[idx];
                   final dateStr = "${shift.date.day.toString().padLeft(2, '0')}/${shift.date.month.toString().padLeft(2, '0')}/${shift.date.year}";
-
-                  // Kiểm tra ngày đã qua chưa (so với hôm nay)
                   final isPast = shift.date.isBefore(todayStart);
 
                   if (shift.isHoliday) {
@@ -1117,8 +1131,6 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
                             ),
                           ],
                         ),
-
-                        // Chỉ hiển thị nút Đổi ca nếu ngày này CHƯA QUA
                         if (!isPast)
                           ElevatedButton.icon(
                             icon: const Icon(Icons.swap_horiz, size: 14),
