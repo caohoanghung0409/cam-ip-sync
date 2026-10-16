@@ -72,7 +72,7 @@ class LunarDate {
     c1 += 0.0104 * sin(2 * f * dr) - 0.0051 * sin((m + mpr) * dr);
     c1 -= 0.0074 * sin((m - mpr) * dr) + 0.0004 * sin((2 * f + m) * dr);
     c1 -= 0.0004 * sin((2 * f - m) * dr) - 0.0006 * sin((2 * f + mpr) * dr);
-    c1 += 0.0010 * sin((2 * f - mpr) * dr) + 0.0005 * sin((2 * mpr + m) * dr);
+    c1 += 0.0104 * sin((2 * f - mpr) * dr) + 0.0005 * sin((2 * mpr + m) * dr);
     return jde + c1;
   }
 
@@ -229,6 +229,17 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     } catch (_) {}
   }
 
+  // Chuẩn hóa tên thành viên để luôn match chính xác
+  static String _matchMemberName(String input) {
+    String clean = input.trim().toUpperCase();
+    for (var m in baseMembers) {
+      if (clean == m.name.toUpperCase() || clean == m.shortName.toUpperCase()) {
+        return m.name;
+      }
+    }
+    return input.trim();
+  }
+
   Future<void> _fetchSwappedShifts() async {
     try {
       final res = await http.get(Uri.parse(scriptApiUrl)).timeout(const Duration(seconds: 4));
@@ -239,9 +250,10 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
           for (var item in decoded["data"]) {
             String d1 = _normalizeDate(item["ngay1"]?.toString() ?? "");
             String d2 = _normalizeDate(item["ngay2"]?.toString() ?? "");
-            String p1 = item["nguoi1"]?.toString() ?? "";
-            String p2 = item["nguoi2"]?.toString() ?? "";
+            String p1 = _matchMemberName(item["nguoi1"]?.toString() ?? "");
+            String p2 = _matchMemberName(item["nguoi2"]?.toString() ?? "");
 
+            // Ghi nhận đổi ca 2 chiều: Ngày 1 chuyển cho p2, Ngày 2 chuyển cho p1
             if (d1.isNotEmpty && p2.isNotEmpty) {
               parsedSwap[d1] = {"nguoiGoc": p1, "nguoiDoi": p2};
             }
@@ -257,16 +269,20 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
 
   static String _normalizeDate(String input) {
     try {
-      if (input.contains('/')) {
-        final parts = input.split('/');
+      String clean = input.replaceAll('"', '').trim();
+      if (clean.contains('T')) {
+        clean = clean.split('T')[0];
+      }
+      if (clean.contains('/')) {
+        final parts = clean.split('/');
         if (parts.length == 3) {
           String d = parts[0].trim().padLeft(2, '0');
           String m = parts[1].trim().padLeft(2, '0');
           String y = parts[2].trim();
           return "$y-$m-$d";
         }
-      } else if (input.contains('-')) {
-        final parts = input.split('-');
+      } else if (clean.contains('-')) {
+        final parts = clean.split('-');
         if (parts.length == 3) {
           String y = parts[0].trim();
           String m = parts[1].trim().padLeft(2, '0');
@@ -368,7 +384,10 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
 
       if (swapShifts.containsKey(dateKey)) {
         String swapToName = swapShifts[dateKey]!["nguoiDoi"]!;
-        currentMember = baseMembers.firstWhere((m) => m.name == swapToName || m.shortName == swapToName, orElse: () => baseMember);
+        currentMember = baseMembers.firstWhere(
+          (m) => m.name.toUpperCase() == swapToName.toUpperCase() || m.shortName.toUpperCase() == swapToName.toUpperCase(),
+          orElse: () => baseMember,
+        );
         isSwapped = true;
         originalName = baseMember.name;
       }
@@ -392,18 +411,25 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     return rotated;
   }
 
-  // Lấy các ngày thứ Bảy trực sắp tới của 1 thành viên
+  // Lấy các ngày thứ Bảy trực sắp tới của 1 người
   static List<DateTime> getUpcomingSaturdaysForMember(String memberName, DateTime fromDate) {
     List<DateTime> list = [];
     DateTime sat = fromDate;
     if (sat.weekday != DateTime.saturday) {
       sat = sat.add(Duration(days: (6 - sat.weekday + 7) % 7));
     }
-    for (int i = 0; i < 30; i++) {
+    for (int i = 0; i < 40; i++) {
       int diffDays = sat.difference(baseSaturday).inDays;
       int diffWeeks = (diffDays / 7).round();
       int personIdx = (diffWeeks % baseMembers.length + baseMembers.length) % baseMembers.length;
-      if (baseMembers[personIdx].name == memberName) {
+      String person = baseMembers[personIdx].name;
+
+      String dateKey = "${sat.year}-${sat.month.toString().padLeft(2, '0')}-${sat.day.toString().padLeft(2, '0')}";
+      if (swapShifts.containsKey(dateKey)) {
+        person = swapShifts[dateKey]!["nguoiDoi"]!;
+      }
+
+      if (_matchMemberName(person) == _matchMemberName(memberName)) {
         list.add(sat);
       }
       sat = sat.add(const Duration(days: 7));
@@ -412,10 +438,11 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     return list;
   }
 
-  // Hộp thoại đổi ca chọn đích danh ngày trực của người kia
+  // Hộp thoại đổi ca chọn ngày trực của người kia
   void showTwoWaySwapDialog(BuildContext context, DateTime sourceDate, String sourcePerson) {
     final dateStr = "${sourceDate.day.toString().padLeft(2, '0')}/${sourceDate.month.toString().padLeft(2, '0')}/${sourceDate.year}";
-    final otherMembers = baseMembers.where((m) => m.name != sourcePerson).toList();
+    final cleanSourcePerson = _matchMemberName(sourcePerson);
+    final otherMembers = baseMembers.where((m) => m.name != cleanSourcePerson).toList();
 
     Member targetMember = otherMembers.first;
     List<DateTime> targetDates = getUpcomingSaturdaysForMember(targetMember.name, _currentDate);
@@ -447,7 +474,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text("Ca của bạn: $sourcePerson", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF004D40))),
+                        Text("Ca của bạn: $cleanSourcePerson", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF004D40))),
                         Text("Ngày: Thứ Bảy, $dateStr", style: const TextStyle(fontSize: 12, color: Colors.black87)),
                       ],
                     ),
@@ -505,7 +532,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                   TextField(
                     controller: reasonController,
                     decoration: InputDecoration(
-                      hintText: "Ví dụ: Bận việc gia đình...",
+                      hintText: "Ví dụ: Bận việc cá nhân...",
                       hintStyle: const TextStyle(fontSize: 12, color: Colors.grey),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
@@ -523,7 +550,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                 onPressed: () async {
                   if (selectedTargetDate == null) return;
                   Navigator.pop(ctx);
-                  await sendTwoWaySwapRequest(sourceDate, sourcePerson, selectedTargetDate!, targetMember.name, reasonController.text);
+                  await sendTwoWaySwapRequest(sourceDate, cleanSourcePerson, selectedTargetDate!, targetMember.name, reasonController.text);
                 },
               ),
             ],
@@ -533,7 +560,6 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     );
   }
 
-  // Gửi lệnh đổi ca qua GET để chống lỗi CORS trên web
   Future<void> sendTwoWaySwapRequest(DateTime d1, String p1, DateTime d2, String p2, String note) async {
     setState(() => _isLoading = true);
     ScaffoldMessenger.of(context).showSnackBar(
@@ -555,6 +581,12 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     try {
       final res = await http.get(url).timeout(const Duration(seconds: 6));
       if (res.statusCode == 200) {
+        // Cập nhật ngay bộ nhớ cục bộ để đổi tức thì trên màn hình
+        setState(() {
+          swapShifts[sD1] = {"nguoiGoc": p1, "nguoiDoi": p2};
+          swapShifts[sD2] = {"nguoiGoc": p2, "nguoiDoi": p1};
+        });
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Hoán đổi ca thành công!"), backgroundColor: Colors.teal),
         );
@@ -822,7 +854,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
   }
 }
 
-// Màn hình chi tiết tra cứu lịch đến 2050 (Kèm nút đổi ca từng ngày)
+// Màn hình chi tiết tra cứu lịch đến 2050 (Ẩn nút đổi ca với ngày đã qua)
 class YearRangeMemberDetailScreen extends StatefulWidget {
   final Member member;
   final List<Member> members;
@@ -872,7 +904,7 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
         isSwapped = true;
       }
 
-      if (assignedName == widget.member.name) {
+      if (_MainDutyScreenState._matchMemberName(assignedName) == _MainDutyScreenState._matchMemberName(widget.member.name)) {
         String? holiday = _MainDutyScreenState.checkHoliday(saturday);
         shifts.add(DutyShift(
           date: saturday,
@@ -893,6 +925,8 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
     final memberShiftsInYear = _getShiftsForYear(_selectedYear);
     final actualCount = memberShiftsInYear.where((s) => !s.isHoliday).length;
     final holidayCount = memberShiftsInYear.where((s) => s.isHoliday).length;
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
@@ -1013,6 +1047,9 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
                   final shift = memberShiftsInYear[idx];
                   final dateStr = "${shift.date.day.toString().padLeft(2, '0')}/${shift.date.month.toString().padLeft(2, '0')}/${shift.date.year}";
 
+                  // Kiểm tra ngày đã qua chưa (so với hôm nay)
+                  final isPast = shift.date.isBefore(todayStart);
+
                   if (shift.isHoliday) {
                     return Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -1046,7 +1083,7 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
                   return Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: isPast ? Colors.grey.shade100 : Colors.white,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: Colors.grey.shade200),
                     ),
@@ -1055,32 +1092,57 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
                       children: [
                         Row(
                           children: [
-                            const Icon(Icons.event_available, color: Colors.teal, size: 18),
+                            Icon(
+                              isPast ? Icons.check_circle_outline : Icons.event_available,
+                              color: isPast ? Colors.grey : Colors.teal,
+                              size: 18,
+                            ),
                             const SizedBox(width: 10),
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(dateStr, style: const TextStyle(fontWeight: FontWeight.w600)),
+                                Text(
+                                  dateStr,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: isPast ? Colors.grey.shade600 : Colors.black87,
+                                  ),
+                                ),
                                 if (shift.isSwapped)
-                                  Text("Đã đổi thay cho ${shift.originalPerson}", style: const TextStyle(color: Colors.brown, fontSize: 10, fontWeight: FontWeight.bold)),
+                                  Text(
+                                    "Đã đổi thay cho ${shift.originalPerson}",
+                                    style: const TextStyle(color: Colors.brown, fontSize: 10, fontWeight: FontWeight.bold),
+                                  ),
                               ],
                             ),
                           ],
                         ),
-                        ElevatedButton.icon(
-                          icon: const Icon(Icons.swap_horiz, size: 14),
-                          label: const Text("Đổi ca", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.teal.shade50,
-                            foregroundColor: const Color(0xFF00796B),
-                            elevation: 0,
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          ),
-                          onPressed: () {
-                            Navigator.pop(context);
-                            widget.onSwapRequested(shift.date, widget.member.name);
-                          },
-                        )
+
+                        // Chỉ hiển thị nút Đổi ca nếu ngày này CHƯA QUA
+                        if (!isPast)
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.swap_horiz, size: 14),
+                            label: const Text("Đổi ca", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.teal.shade50,
+                              foregroundColor: const Color(0xFF00796B),
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            ),
+                            onPressed: () {
+                              Navigator.pop(context);
+                              widget.onSwapRequested(shift.date, widget.member.name);
+                            },
+                          )
+                        else
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade200,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text("ĐÃ QUA", style: TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold)),
+                          )
                       ],
                     ),
                   );
