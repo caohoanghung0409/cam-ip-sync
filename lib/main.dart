@@ -300,7 +300,13 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
 
   Future<void> _fetchSwappedShifts() async {
     try {
-      final res = await http.get(Uri.parse(scriptApiUrl)).timeout(const Duration(seconds: 10));
+      final client = http.Client();
+      final request = http.Request('GET', Uri.parse(scriptApiUrl))
+        ..followRedirects = true
+        ..maxRedirects = 5;
+      final streamedResponse = await client.send(request).timeout(const Duration(seconds: 10));
+      final res = await http.Response.fromStream(streamedResponse);
+
       if (res.statusCode == 200 && res.body.isNotEmpty) {
         final decoded = jsonDecode(res.body);
         if (decoded["status"] == "success" && decoded["data"] != null) {
@@ -327,7 +333,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                 "nguoiDoi": p1,
                 "trangThai": status,
                 "ngayDoi": d1,
-                "laNguoiYeuCau": false, // Người được đề nghị đổi (người cần bấm xác nhận)
+                "laNguoiYeuCau": false,
               };
             }
           }
@@ -532,7 +538,6 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     return list;
   }
 
-  // ================= TỰ ĐỔI MẬT MÃ =================
   void _showChangePasswordDialog() {
     String selectedUsername = baseMembers.first.username;
     final oldPassController = TextEditingController();
@@ -640,7 +645,6 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     );
   }
 
-  // ================= 1. GỬI YÊU CẦU ĐỔI CA (PENDING) =================
   void showTwoWaySwapDialog(BuildContext context, DateTime sourceDate, String sourcePerson) {
     final dateStr = "${sourceDate.day.toString().padLeft(2, '0')}/${sourceDate.month.toString().padLeft(2, '0')}/${sourceDate.year}";
     final cleanSourcePerson = _matchMemberName(sourcePerson);
@@ -806,8 +810,10 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     });
 
     try {
-      // Dùng http.get trực tiếp tương thích 100% Flutter Web & Mobile
-      final response = await http.get(uri).timeout(const Duration(seconds: 12));
+      final client = http.Client();
+      final request = http.Request('GET', uri)..followRedirects = true..maxRedirects = 5;
+      final streamedResponse = await client.send(request).timeout(const Duration(seconds: 12));
+      final response = await http.Response.fromStream(streamedResponse);
       debugPrint("swap_request Response: ${response.statusCode} - ${response.body}");
 
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Đã gửi đề nghị! Chờ $p2 vào xác nhận."), backgroundColor: Colors.teal));
@@ -820,7 +826,6 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     if (mounted) setState(() => _isLoading = false);
   }
 
-  // ================= 2. XÁC NHẬN ĐỒNG Ý ĐỔI CA (CONFIRMED) =================
   void _confirmAcceptSwap(DateTime date, String requester, String targetPerson) {
     final passwordController = TextEditingController();
 
@@ -885,7 +890,10 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     });
 
     try {
-      final response = await http.get(uri).timeout(const Duration(seconds: 12));
+      final client = http.Client();
+      final request = http.Request('GET', uri)..followRedirects = true..maxRedirects = 5;
+      final streamedResponse = await client.send(request).timeout(const Duration(seconds: 12));
+      final response = await http.Response.fromStream(streamedResponse);
       debugPrint("swap_confirm Response: ${response.statusCode} - ${response.body}");
 
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Hoán đổi ca thành công!"), backgroundColor: Colors.teal));
@@ -898,7 +906,6 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     if (mounted) setState(() => _isLoading = false);
   }
 
-  // ================= 3. HỦY CA ĐỔI =================
   void _confirmCancelSwap(DateTime date, String shiftOwner) {
     final passwordController = TextEditingController();
 
@@ -963,7 +970,10 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     });
 
     try {
-      final response = await http.get(uri).timeout(const Duration(seconds: 12));
+      final client = http.Client();
+      final request = http.Request('GET', uri)..followRedirects = true..maxRedirects = 5;
+      final streamedResponse = await client.send(request).timeout(const Duration(seconds: 12));
+      final response = await http.Response.fromStream(streamedResponse);
       debugPrint("cancel Response: ${response.statusCode} - ${response.body}");
 
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Đã hủy và khôi phục ca gốc!"), backgroundColor: Colors.teal));
@@ -1368,7 +1378,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                                             ),
                                           ),
                                         ),
-                                        // NÚT ĐỒNG Ý: Hiển thị ngay cho người được đề nghị đổi khi ở trạng thái PENDING
+                                        // NÚT ĐỒNG Ý
                                         if (isSwapped && swapStatus == "PENDING" && !isRequester)
                                           Padding(
                                             padding: const EdgeInsets.only(right: 6.0),
