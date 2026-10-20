@@ -190,7 +190,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
   };
 
   static Map<String, String> customHolidays = {};
-  static Map<String, Map<String, String>> swapShifts = {};
+  static Map<String, Map<String, dynamic>> swapShifts = {};
 
   DateTime _currentDate = DateTime.now();
   bool _isLoading = false;
@@ -228,7 +228,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
   Future<void> _fetchRemotePasswordsFast() async {
     final String url = "https://docs.google.com/spreadsheets/d/$sheetId/gviz/tq?tqx=out:csv&sheet=User";
     try {
-      final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 3));
+      final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 4));
       if (res.statusCode == 200) {
         final lines = const LineSplitter().convert(res.body);
         for (int i = 1; i < lines.length; i++) {
@@ -245,7 +245,6 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     } catch (_) {}
   }
 
-  // Đổi mật khẩu và gửi cập nhật lên Google Sheets
   static void updateRemotePasswordAsync(String username, String newPassword) {
     userPasswords[username.toLowerCase()] = newPassword;
     final uri = Uri.parse(scriptApiUrl).replace(queryParameters: {
@@ -253,7 +252,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
       "username": username.toLowerCase(),
       "new_pass": newPassword,
     });
-    http.get(uri).timeout(const Duration(seconds: 10)).catchError((_) {});
+    http.get(uri).catchError((_) {});
   }
 
   Future<void> _fetchGoogleSheetHolidays() async {
@@ -301,17 +300,11 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
 
   Future<void> _fetchSwappedShifts() async {
     try {
-      final client = http.Client();
-      final request = http.Request('GET', Uri.parse(scriptApiUrl))
-        ..followRedirects = true
-        ..maxRedirects = 5;
-      final streamedResponse = await client.send(request).timeout(const Duration(seconds: 10));
-      final res = await http.Response.fromStream(streamedResponse);
-
+      final res = await http.get(Uri.parse(scriptApiUrl)).timeout(const Duration(seconds: 10));
       if (res.statusCode == 200 && res.body.isNotEmpty) {
         final decoded = jsonDecode(res.body);
         if (decoded["status"] == "success" && decoded["data"] != null) {
-          Map<String, Map<String, String>> parsedSwap = {};
+          Map<String, Map<String, dynamic>> parsedSwap = {};
           for (var item in decoded["data"]) {
             String d1 = _normalizeDate(item["ngay1"]?.toString() ?? "");
             String d2 = _normalizeDate(item["ngay2"]?.toString() ?? "");
@@ -325,7 +318,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                 "nguoiDoi": p2,
                 "trangThai": status,
                 "ngayDoi": d2,
-                "laNguoiYeuCau": "true",
+                "laNguoiYeuCau": true,
               };
             }
             if (d2.isNotEmpty && p1.isNotEmpty) {
@@ -334,7 +327,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                 "nguoiDoi": p1,
                 "trangThai": status,
                 "ngayDoi": d1,
-                "laNguoiYeuCau": "false",
+                "laNguoiYeuCau": false, // Người được đề nghị đổi (người cần bấm xác nhận)
               };
             }
           }
@@ -474,7 +467,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
       if (swapShifts.containsKey(dateKey)) {
         swapStatus = swapShifts[dateKey]!["trangThai"];
         targetSwapPerson = swapShifts[dateKey]!["nguoiDoi"];
-        isRequester = swapShifts[dateKey]!["laNguoiYeuCau"] == "true";
+        isRequester = swapShifts[dateKey]!["laNguoiYeuCau"] == true;
 
         if (swapStatus == "CONFIRMED") {
           currentMember = baseMembers.firstWhere(
@@ -539,7 +532,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     return list;
   }
 
-  // ================= TÍNH NĂNG TỰ ĐỔI MẬT MÃ CÁ NHÂN (NÚT 🔑 TRÊN APPBAR) =================
+  // ================= TỰ ĐỔI MẬT MÃ =================
   void _showChangePasswordDialog() {
     String selectedUsername = baseMembers.first.username;
     final oldPassController = TextEditingController();
@@ -647,7 +640,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     );
   }
 
-  // ================= BƯỚC 1: KHỞI TẠO ĐỔI CA (CẦN PASS NGƯỜI TẠO) =================
+  // ================= 1. GỬI YÊU CẦU ĐỔI CA (PENDING) =================
   void showTwoWaySwapDialog(BuildContext context, DateTime sourceDate, String sourcePerson) {
     final dateStr = "${sourceDate.day.toString().padLeft(2, '0')}/${sourceDate.month.toString().padLeft(2, '0')}/${sourceDate.year}";
     final cleanSourcePerson = _matchMemberName(sourcePerson);
@@ -798,7 +791,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
 
   Future<void> sendSwapRequest(DateTime d1, String p1, DateTime d2, String p2, String note) async {
     setState(() => _isLoading = true);
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Đang gửi đề nghị đổi ca..."), duration: Duration(seconds: 2)));
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Đang gửi đề nghị đổi ca lên Google Sheets..."), duration: Duration(seconds: 2)));
 
     final sD1 = "${d1.year}-${d1.month.toString().padLeft(2, '0')}-${d1.day.toString().padLeft(2, '0')}";
     final sD2 = "${d2.year}-${d2.month.toString().padLeft(2, '0')}-${d2.day.toString().padLeft(2, '0')}";
@@ -813,24 +806,21 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     });
 
     try {
-      final client = http.Client();
-      final request = http.Request('GET', uri)..followRedirects = true..maxRedirects = 5;
-      final streamedResponse = await client.send(request).timeout(const Duration(seconds: 12));
-      final response = await http.Response.fromStream(streamedResponse);
+      // Dùng http.get trực tiếp tương thích 100% Flutter Web & Mobile
+      final response = await http.get(uri).timeout(const Duration(seconds: 12));
+      debugPrint("swap_request Response: ${response.statusCode} - ${response.body}");
 
-      if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Đã gửi đề nghị đổi ca! Chờ $p2 xác nhận."), backgroundColor: Colors.teal));
-        await Future.delayed(const Duration(seconds: 1));
-        await _fetchSwappedShifts();
-      }
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Đã gửi đề nghị! Chờ $p2 vào xác nhận."), backgroundColor: Colors.teal));
+      await Future.delayed(const Duration(seconds: 1));
+      await _fetchSwappedShifts();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Lỗi: $e"), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Lỗi gửi dữ liệu: $e"), backgroundColor: Colors.red));
     }
 
     if (mounted) setState(() => _isLoading = false);
   }
 
-  // ================= BƯỚC 2: XÁC NHẬN ĐỒNG Ý ĐỔI CA (CẦN PASS ĐỐI PHƯƠNG) =================
+  // ================= 2. XÁC NHẬN ĐỒNG Ý ĐỔI CA (CONFIRMED) =================
   void _confirmAcceptSwap(DateTime date, String requester, String targetPerson) {
     final passwordController = TextEditingController();
 
@@ -895,23 +885,20 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     });
 
     try {
-      final client = http.Client();
-      final request = http.Request('GET', uri)..followRedirects = true..maxRedirects = 5;
-      final streamedResponse = await client.send(request).timeout(const Duration(seconds: 12));
-      final response = await http.Response.fromStream(streamedResponse);
+      final response = await http.get(uri).timeout(const Duration(seconds: 12));
+      debugPrint("swap_confirm Response: ${response.statusCode} - ${response.body}");
 
-      if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Xác nhận hoán đổi ca thành công!"), backgroundColor: Colors.teal));
-        await _fetchSwappedShifts();
-      }
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Hoán đổi ca thành công!"), backgroundColor: Colors.teal));
+      await Future.delayed(const Duration(seconds: 1));
+      await _fetchSwappedShifts();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Lỗi: $e"), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Lỗi xác nhận: $e"), backgroundColor: Colors.red));
     }
 
     if (mounted) setState(() => _isLoading = false);
   }
 
-  // ================= HỦY CA: BẮT BUỘC NHẬP PASS CỦA NGƯỜI ĐỨNG TÊN CA ĐÓ =================
+  // ================= 3. HỦY CA ĐỔI =================
   void _confirmCancelSwap(DateTime date, String shiftOwner) {
     final passwordController = TextEditingController();
 
@@ -976,19 +963,14 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     });
 
     try {
-      final client = http.Client();
-      final request = http.Request('GET', uri)..followRedirects = true..maxRedirects = 5;
-      final streamedResponse = await client.send(request).timeout(const Duration(seconds: 12));
-      final response = await http.Response.fromStream(streamedResponse);
+      final response = await http.get(uri).timeout(const Duration(seconds: 12));
+      debugPrint("cancel Response: ${response.statusCode} - ${response.body}");
 
-      if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Đã hủy đổi ca và khôi phục ca gốc!"), backgroundColor: Colors.teal));
-        await _fetchSwappedShifts();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Lỗi: ${response.statusCode}"), backgroundColor: Colors.red));
-      }
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Đã hủy và khôi phục ca gốc!"), backgroundColor: Colors.teal));
+      await Future.delayed(const Duration(seconds: 1));
+      await _fetchSwappedShifts();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Lỗi: $e"), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Lỗi hủy ca: $e"), backgroundColor: Colors.red));
     }
 
     if (mounted) setState(() => _isLoading = false);
@@ -1021,7 +1003,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
         centerTitle: true,
         actions: [
           IconButton(
-            tooltip: "Đổi mật mã của bạn",
+            tooltip: "Đổi mật mã cá nhân",
             icon: const Icon(Icons.key, color: Colors.amberAccent, size: 22),
             onPressed: _showChangePasswordDialog,
           ),
@@ -1037,7 +1019,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // ================= 1. BANNER TRỰC TUẦN NÀY =================
+            // BANNER TRỰC TUẦN NÀY
             Container(
               margin: const EdgeInsets.fromLTRB(16, 16, 16, 10),
               decoration: BoxDecoration(
@@ -1123,7 +1105,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                                   ? "⏳ Đang chờ xác nhận đổi ca..."
                                   : "🔄 Đã đổi: trực thay cho ${currentDuty.originalPerson}",
                               style: TextStyle(
-                                color: currentDuty.swapStatus == "PENDING" ? Colors.brown.shade800 : Colors.amberAccent,
+                                color: currentDuty.swapStatus == "PENDING" ? Colors.orange.shade900 : Colors.amberAccent,
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -1178,7 +1160,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
               ),
             ),
 
-            // ================= 2. BỘ LỌC THEO THÀNH VIÊN =================
+            // BỘ LỌC THÀNH VIÊN
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               height: 40,
@@ -1195,7 +1177,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
               ),
             ),
 
-            // ================= 3. DANH SÁCH 2 NĂM GOM THEO THÁNG =================
+            // DANH SÁCH 2 NĂM GOM THEO THÁNG
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
               child: Column(
@@ -1371,7 +1353,9 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                                                   Padding(
                                                     padding: const EdgeInsets.only(top: 3),
                                                     child: Text(
-                                                      isRequester ? "Đã gửi đề nghị đổi cho $originalName" : "$originalName đề nghị đổi ca với bạn",
+                                                      isRequester
+                                                          ? "Đã gửi đề nghị đổi cho $originalName"
+                                                          : "$originalName đề nghị đổi ca với bạn",
                                                       style: TextStyle(color: Colors.orange.shade900, fontSize: 11, fontWeight: FontWeight.bold),
                                                     ),
                                                   )
@@ -1384,13 +1368,13 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                                             ),
                                           ),
                                         ),
-                                        // Nút Xác nhận đồng ý (cho người được đề nghị đổi khi PENDING)
+                                        // NÚT ĐỒNG Ý: Hiển thị ngay cho người được đề nghị đổi khi ở trạng thái PENDING
                                         if (isSwapped && swapStatus == "PENDING" && !isRequester)
                                           Padding(
                                             padding: const EdgeInsets.only(right: 6.0),
                                             child: ElevatedButton(
                                               style: ElevatedButton.styleFrom(
-                                                backgroundColor: Colors.orange.shade600,
+                                                backgroundColor: Colors.orange.shade700,
                                                 foregroundColor: Colors.white,
                                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                                 elevation: 0,
@@ -1399,11 +1383,11 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                                               child: const Text("Đồng ý", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                                             ),
                                           ),
-                                        // Nút Hủy đổi ca (yêu cầu đúng mật khẩu của người hiển thị tại dòng đó)
+                                        // Nút Hủy đổi ca
                                         if (isSwapped)
                                           IconButton(
                                             icon: const Icon(Icons.undo, size: 20, color: Colors.redAccent),
-                                            tooltip: "Hủy lượt đổi này (nhập pass của ${m.shortName})",
+                                            tooltip: "Hủy ca này (nhập pass của ${m.shortName})",
                                             onPressed: () => _confirmCancelSwap(targetSat, m.name),
                                           ),
                                         // Nút Đổi ca
