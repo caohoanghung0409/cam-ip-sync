@@ -149,11 +149,11 @@ class NoiDayApp extends StatelessWidget {
       title: 'NỔI DẬY',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF00695C),
-          primary: const Color(0xFF00695C),
-          surface: const Color(0xFFF6F8FA),
+          seedColor: const Color(0xFF0F766E), // Emerald sắc sảo
+          primary: const Color(0xFF0F766E),
+          surface: const Color(0xFFF8FAFC),
         ),
-        scaffoldBackgroundColor: const Color(0xFFF6F8FA),
+        scaffoldBackgroundColor: const Color(0xFFF1F5F9), // Nền xám băng Slate dịu mắt
         useMaterial3: true,
       ),
       home: const MainDutyScreen(),
@@ -169,11 +169,12 @@ class MainDutyScreen extends StatefulWidget {
 }
 
 class _MainDutyScreenState extends State<MainDutyScreen> {
+  // Bảng màu nhận diện sang trọng hơn cho từng thành viên
   static final List<Member> baseMembers = const [
-    Member(username: "sam.nt", name: "NGUYỄN THỊ SÂM", shortName: "SÂM", themeColor: Color(0xFFE65100)),
-    Member(username: "minh.nn", name: "NGUYỄN NGỌC HOÀNG MINH", shortName: "MINH", themeColor: Color(0xFF1565C0)),
-    Member(username: "trinh.lt", name: "LÂM TỐ TRINH", shortName: "TRINH", themeColor: Color(0xFF6A1B9A)),
-    Member(username: "hung.ch", name: "CAO HOÀNG HƯNG", shortName: "HƯNG", themeColor: Color(0xFF00695C)),
+    Member(username: "sam.nt", name: "NGUYỄN THỊ SÂM", shortName: "SÂM", themeColor: Color(0xFFEA580C)), // Cam Coral cháy
+    Member(username: "minh.nn", name: "NGUYỄN NGỌC HOÀNG MINH", shortName: "MINH", themeColor: Color(0xFF0284C7)), // Xanh Ocean Sapphire
+    Member(username: "trinh.lt", name: "LÂM TỐ TRINH", shortName: "TRINH", themeColor: Color(0xFF9333EA)), // Tím Thạch Anh Amethyst
+    Member(username: "hung.ch", name: "CAO HOÀNG HƯNG", shortName: "HƯNG", themeColor: Color(0xFF0D9488)), // Xanh Teal Ngọc Bích
   ];
 
   static final DateTime baseSaturday = DateTime(2026, 10, 17);
@@ -538,6 +539,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     return list;
   }
 
+  // ================= TỰ ĐỔI MẬT MÃ =================
   void _showChangePasswordDialog() {
     String selectedUsername = baseMembers.first.username;
     final oldPassController = TextEditingController();
@@ -554,12 +556,12 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
         builder: (context, setDialogState) {
           return AlertDialog(
             backgroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
             title: const Row(
               children: [
-                Icon(Icons.key, color: Color(0xFF00695C), size: 24),
-                SizedBox(width: 8),
-                Text("ĐỔI MẬT MÃ CÁ NHÂN", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Color(0xFF00695C))),
+                Icon(Icons.key_rounded, color: Color(0xFF0F766E), size: 26),
+                SizedBox(width: 10),
+                Text("ĐỔI MẬT MÃ", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17, color: Color(0xFF0F766E))),
               ],
             ),
             content: SingleChildScrollView(
@@ -567,13 +569,15 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("1. Chọn tài khoản của bạn:", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+                  const Text("1. Tài khoản của bạn:", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                   const SizedBox(height: 6),
                   DropdownButtonFormField<String>(
                     value: selectedUsername,
                     decoration: InputDecoration(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      filled: true,
+                      fillColor: const Color(0xFFF8FAFC),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
                     ),
                     items: allAccounts.map((acc) {
                       return DropdownMenuItem<String>(
@@ -588,53 +592,62 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                     },
                   ),
                   const SizedBox(height: 14),
-                  const Text("2. Mật mã hiện tại:", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+                  const Text("2. Mật mã hiện tại:", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                   const SizedBox(height: 6),
                   TextField(
                     controller: oldPassController,
                     obscureText: true,
                     decoration: InputDecoration(
+                      filled: true,
+                      fillColor: const Color(0xFFF8FAFC),
                       hintText: "••••",
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
                     ),
                   ),
                   const SizedBox(height: 14),
-                  const Text("3. Mật mã mới:", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+                  const Text("3. Mật mã mới:", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                   const SizedBox(height: 6),
                   TextField(
                     controller: newPassController,
                     obscureText: true,
                     decoration: InputDecoration(
+                      filled: true,
+                      fillColor: const Color(0xFFF8FAFC),
                       hintText: "Nhập mật mã mới...",
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
                     ),
                   ),
                 ],
               ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("HỦY", style: TextStyle(color: Colors.grey))),
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("HỦY", style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.bold))),
               ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00695C), foregroundColor: Colors.white),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0F766E),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                ),
                 onPressed: () {
                   final oldPass = oldPassController.text.trim();
                   final newPass = newPassController.text.trim();
                   final currentActual = userPasswords[selectedUsername.toLowerCase()] ?? "1111";
 
                   if (oldPass != currentActual) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Mật mã hiện tại không đúng!"), backgroundColor: Colors.red));
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Mật mã hiện tại không đúng!"), backgroundColor: Color(0xFFEF4444)));
                     return;
                   }
                   if (newPass.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Mật mã mới không được để trống!"), backgroundColor: Colors.red));
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Mật mã mới không được để trống!"), backgroundColor: Color(0xFFEF4444)));
                     return;
                   }
 
                   Navigator.pop(ctx);
                   updateRemotePasswordAsync(selectedUsername, newPass);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Đã đổi mật mã thành công!"), backgroundColor: Colors.teal));
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Đã đổi mật mã thành công!"), backgroundColor: Color(0xFF0F766E)));
                 },
                 child: const Text("LƯU MẬT MÃ", style: TextStyle(fontWeight: FontWeight.bold)),
               ),
@@ -645,6 +658,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     );
   }
 
+  // ================= 1. GỬI YÊU CẦU ĐỔI CA =================
   void showTwoWaySwapDialog(BuildContext context, DateTime sourceDate, String sourcePerson) {
     final dateStr = "${sourceDate.day.toString().padLeft(2, '0')}/${sourceDate.month.toString().padLeft(2, '0')}/${sourceDate.year}";
     final cleanSourcePerson = _matchMemberName(sourcePerson);
@@ -662,12 +676,12 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
         builder: (context, setDialogState) {
           return AlertDialog(
             backgroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
             title: const Row(
               children: [
-                Icon(Icons.swap_horizontal_circle_outlined, color: Color(0xFF00695C), size: 26),
-                SizedBox(width: 8),
-                Text("ĐỀ NGHỊ ĐỔI CA TRỰC", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Color(0xFF00695C))),
+                Icon(Icons.swap_horizontal_circle_rounded, color: Color(0xFF0F766E), size: 28),
+                SizedBox(width: 10),
+                Text("ĐỀ NGHỊ ĐỔI CA TRỰC", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Color(0xFF0F766E))),
               ],
             ),
             content: SingleChildScrollView(
@@ -676,25 +690,31 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: const Color(0xFFE0F2F1), borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFCCFBF1), // Mint nhạt sang trọng
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFF99F6E4)),
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text("Ca của bạn: $cleanSourcePerson", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF004D40))),
+                        Text("Ca của bạn: $cleanSourcePerson", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF115E59))),
                         const SizedBox(height: 2),
-                        Text("Thứ Bảy, $dateStr", style: const TextStyle(fontSize: 12, color: Colors.black87)),
+                        Text("Thứ Bảy, $dateStr", style: const TextStyle(fontSize: 12, color: Color(0xFF0F766E))),
                       ],
                     ),
                   ),
                   const SizedBox(height: 14),
-                  const Text("1. Người muốn đổi cùng:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.blueGrey)),
+                  const Text("1. Người muốn đổi cùng:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF64748B))),
                   const SizedBox(height: 6),
                   DropdownButtonFormField<Member>(
                     value: targetMember,
                     decoration: InputDecoration(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      filled: true,
+                      fillColor: const Color(0xFFF8FAFC),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
                     ),
                     items: otherMembers.map((m) {
                       return DropdownMenuItem<Member>(
@@ -713,20 +733,22 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                     },
                   ),
                   const SizedBox(height: 14),
-                  Text("2. Chọn ca của ${targetMember.shortName} để đổi:", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.blueGrey)),
+                  Text("2. Chọn ca của ${targetMember.shortName} để đổi:", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF64748B))),
                   const SizedBox(height: 6),
                   if (targetDates.isEmpty)
-                    const Text("Không tìm thấy ngày trực sắp tới", style: TextStyle(color: Colors.red, fontSize: 12))
+                    const Text("Không tìm thấy ngày trực sắp tới", style: TextStyle(color: Color(0xFFDC2626), fontSize: 12))
                   else
                     DropdownButtonFormField<DateTime>(
                       value: selectedTargetDate,
                       decoration: InputDecoration(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        filled: true,
+                        fillColor: const Color(0xFFF8FAFC),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
                       ),
                       items: targetDates.map((d) {
                         final s = "Thứ Bảy, ${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}";
-                        return DropdownMenuItem<DateTime>(value: d, child: Text(s, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)));
+                        return DropdownMenuItem<DateTime>(value: d, child: Text(s, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF334155))));
                       }).toList(),
                       onChanged: (val) {
                         if (val != null) {
@@ -735,40 +757,49 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                       },
                     ),
                   const SizedBox(height: 14),
-                  const Text("3. Lý do đổi (tùy chọn):", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.blueGrey)),
+                  const Text("3. Lý do đổi (tùy chọn):", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF64748B))),
                   const SizedBox(height: 6),
                   TextField(
                     controller: reasonController,
                     decoration: InputDecoration(
+                      filled: true,
+                      fillColor: const Color(0xFFF8FAFC),
                       hintText: "Ví dụ: Đi công tác, bận việc cá nhân...",
-                      hintStyle: const TextStyle(fontSize: 12, color: Colors.grey),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
                     ),
                   ),
                   const SizedBox(height: 14),
-                  Text("4. Mật mã xác thực của $cleanSourcePerson:", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.redAccent)),
+                  Text("4. Mật mã xác thực của $cleanSourcePerson:", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFFDC2626))),
                   const SizedBox(height: 6),
                   TextField(
                     controller: passwordController,
                     obscureText: true,
                     decoration: InputDecoration(
-                      prefixIcon: const Icon(Icons.lock_outline, size: 18),
+                      filled: true,
+                      fillColor: const Color(0xFFF8FAFC),
+                      prefixIcon: const Icon(Icons.lock_outline_rounded, size: 18, color: Color(0xFF64748B)),
                       hintText: "Nhập mật mã xác nhận...",
-                      hintStyle: const TextStyle(fontSize: 12, color: Colors.grey),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
                     ),
                   ),
                 ],
               ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("HỦY", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold))),
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("HỦY", style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.bold))),
               ElevatedButton.icon(
-                icon: const Icon(Icons.send, size: 16),
+                icon: const Icon(Icons.send_rounded, size: 16),
                 label: const Text("GỬI ĐỀ NGHỊ ĐỔI", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00695C), foregroundColor: Colors.white),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0F766E),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                ),
                 onPressed: () async {
                   if (selectedTargetDate == null) return;
 
@@ -778,7 +809,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                   final adminPass = userPasswords["admin"] ?? "1111";
 
                   if (inputPass.isEmpty || (inputPass != correctUserPass && inputPass != adminPass)) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Mật mã không đúng!"), backgroundColor: Colors.red));
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Mật mã không đúng!"), backgroundColor: Color(0xFFEF4444)));
                     return;
                   }
 
@@ -814,18 +845,18 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
       final request = http.Request('GET', uri)..followRedirects = true..maxRedirects = 5;
       final streamedResponse = await client.send(request).timeout(const Duration(seconds: 12));
       final response = await http.Response.fromStream(streamedResponse);
-      debugPrint("swap_request Response: ${response.statusCode} - ${response.body}");
 
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Đã gửi đề nghị! Chờ $p2 vào xác nhận."), backgroundColor: Colors.teal));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Đã gửi đề nghị! Chờ $p2 vào xác nhận."), backgroundColor: const Color(0xFF0F766E)));
       await Future.delayed(const Duration(seconds: 1));
       await _fetchSwappedShifts();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Lỗi gửi dữ liệu: $e"), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Lỗi gửi dữ liệu: $e"), backgroundColor: const Color(0xFFEF4444)));
     }
 
     if (mounted) setState(() => _isLoading = false);
   }
 
+  // ================= 2. XÁC NHẬN ĐỒNG Ý ĐỔI CA =================
   void _confirmAcceptSwap(DateTime date, String requester, String targetPerson) {
     final passwordController = TextEditingController();
 
@@ -833,32 +864,39 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text("XÁC NHẬN ĐỒNG Ý ĐỔI CA", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF00695C))),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text("XÁC NHẬN ĐỒNG Ý ĐỔI CA", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Color(0xFF0F766E))),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("$requester đã gửi đề nghị hoán đổi ca trực với bạn ($targetPerson)."),
-            const SizedBox(height: 12),
-            Text("Nhập mật mã của $targetPerson để đồng ý hoán đổi:", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+            Text("$requester đã gửi đề nghị hoán đổi ca trực với bạn ($targetPerson).", style: const TextStyle(color: Color(0xFF334155))),
+            const SizedBox(height: 14),
+            Text("Nhập mật mã của $targetPerson để đồng ý:", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
             const SizedBox(height: 6),
             TextField(
               controller: passwordController,
               obscureText: true,
               decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.lock_outline, size: 18),
+                filled: true,
+                fillColor: const Color(0xFFF8FAFC),
+                prefixIcon: const Icon(Icons.lock_outline_rounded, size: 18, color: Color(0xFF64748B)),
                 hintText: "••••",
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
               ),
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("ĐÓNG", style: TextStyle(color: Colors.grey))),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("ĐÓNG", style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.bold))),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00695C), foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0F766E),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            ),
             onPressed: () async {
               final inputPass = passwordController.text.trim();
               final targetKey = _getUsernameOfPerson(targetPerson);
@@ -866,7 +904,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
               final adminPass = userPasswords["admin"] ?? "1111";
 
               if (inputPass.isEmpty || (inputPass != correctPass && inputPass != adminPass)) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Mật mã của $targetPerson không đúng!"), backgroundColor: Colors.red));
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Mật mã của $targetPerson không đúng!"), backgroundColor: const Color(0xFFEF4444)));
                 return;
               }
 
@@ -894,18 +932,18 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
       final request = http.Request('GET', uri)..followRedirects = true..maxRedirects = 5;
       final streamedResponse = await client.send(request).timeout(const Duration(seconds: 12));
       final response = await http.Response.fromStream(streamedResponse);
-      debugPrint("swap_confirm Response: ${response.statusCode} - ${response.body}");
 
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Hoán đổi ca thành công!"), backgroundColor: Colors.teal));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Hoán đổi ca thành công!"), backgroundColor: Color(0xFF0F766E)));
       await Future.delayed(const Duration(seconds: 1));
       await _fetchSwappedShifts();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Lỗi xác nhận: $e"), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Lỗi xác nhận: $e"), backgroundColor: const Color(0xFFEF4444)));
     }
 
     if (mounted) setState(() => _isLoading = false);
   }
 
+  // ================= 3. HỦY CA ĐỔI =================
   void _confirmCancelSwap(DateTime date, String shiftOwner) {
     final passwordController = TextEditingController();
 
@@ -913,32 +951,39 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text("XÁC NHẬN HỦY ĐỔI CA", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.red)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text("XÁC NHẬN HỦY ĐỔI CA", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFFDC2626))),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("Bạn đang hủy lượt đổi của ca ngày này (thuộc $shiftOwner)."),
+            Text("Bạn đang hủy lượt đổi của ca ngày này (thuộc $shiftOwner).", style: const TextStyle(color: Color(0xFF334155))),
             const SizedBox(height: 14),
-            Text("Bắt buộc nhập đúng mật mã của $shiftOwner (hoặc admin):", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+            Text("Nhập đúng mật mã của $shiftOwner (hoặc admin):", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
             const SizedBox(height: 6),
             TextField(
               controller: passwordController,
               obscureText: true,
               decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.lock_outline, size: 18),
+                filled: true,
+                fillColor: const Color(0xFFF8FAFC),
+                prefixIcon: const Icon(Icons.lock_outline_rounded, size: 18, color: Color(0xFF64748B)),
                 hintText: "••••",
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
               ),
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("KHÔNG", style: TextStyle(color: Colors.grey))),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("KHÔNG", style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.bold))),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            ),
             onPressed: () {
               final inputPass = passwordController.text.trim();
               final ownerKey = _getUsernameOfPerson(shiftOwner);
@@ -946,7 +991,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
               final adminPass = userPasswords["admin"] ?? "1111";
 
               if (inputPass.isEmpty || (inputPass != ownerPass && inputPass != adminPass)) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Sai mật mã! Phải nhập đúng mật mã của $shiftOwner"), backgroundColor: Colors.red));
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Sai mật mã! Phải nhập đúng mật mã của $shiftOwner"), backgroundColor: const Color(0xFFEF4444)));
                 return;
               }
 
@@ -974,13 +1019,12 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
       final request = http.Request('GET', uri)..followRedirects = true..maxRedirects = 5;
       final streamedResponse = await client.send(request).timeout(const Duration(seconds: 12));
       final response = await http.Response.fromStream(streamedResponse);
-      debugPrint("cancel Response: ${response.statusCode} - ${response.body}");
 
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Đã hủy và khôi phục ca gốc!"), backgroundColor: Colors.teal));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Đã hủy và khôi phục ca gốc!"), backgroundColor: Color(0xFF0F766E)));
       await Future.delayed(const Duration(seconds: 1));
       await _fetchSwappedShifts();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Lỗi hủy ca: $e"), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Lỗi hủy ca: $e"), backgroundColor: const Color(0xFFEF4444)));
     }
 
     if (mounted) setState(() => _isLoading = false);
@@ -1001,27 +1045,27 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: const Color(0xFF00695C),
+        backgroundColor: const Color(0xFF064E3B), // Rừng thông Emerald đậm sâu thẳm
         leading: const Padding(
           padding: EdgeInsets.all(12.0),
-          child: Icon(Icons.shield_outlined, color: Colors.amberAccent, size: 24),
+          child: Icon(Icons.shield_rounded, color: Color(0xFFFBBF24), size: 24),
         ),
         title: const Text(
           "NỔI DẬY • LỊCH TRỰC",
-          style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white, fontSize: 17, letterSpacing: 0.5),
+          style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white, fontSize: 17, letterSpacing: 0.8),
         ),
         centerTitle: true,
         actions: [
           IconButton(
             tooltip: "Đổi mật mã cá nhân",
-            icon: const Icon(Icons.key, color: Colors.amberAccent, size: 22),
+            icon: const Icon(Icons.key_rounded, color: Color(0xFFFDE68A), size: 22),
             onPressed: _showChangePasswordDialog,
           ),
           IconButton(
             tooltip: "Làm mới dữ liệu",
             icon: _isLoading
-                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                : const Icon(Icons.refresh, color: Colors.white),
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                : const Icon(Icons.refresh_rounded, color: Colors.white),
             onPressed: _initData,
           )
         ],
@@ -1029,39 +1073,39 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // BANNER TRỰC TUẦN NÀY
+            // ================= 1. BANNER TRỰC TUẦN NÀY (VIP CARD) =================
             Container(
               margin: const EdgeInsets.fromLTRB(16, 16, 16, 10),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(24),
                 gradient: LinearGradient(
                   colors: currentDuty.isHoliday
-                      ? [const Color(0xFFC62828), const Color(0xFF8E0000)]
-                      : [const Color(0xFF00695C), const Color(0xFF004D40)],
+                      ? [const Color(0xFFB91C1C), const Color(0xFF7F1D1D)] // Ruby hoàng gia
+                      : [const Color(0xFF047857), const Color(0xFF064E3B)], // Emerald sang trọng
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: (currentDuty.isHoliday ? Colors.red : Colors.teal).withOpacity(0.35),
-                    blurRadius: 14,
-                    offset: const Offset(0, 6),
+                    color: (currentDuty.isHoliday ? const Color(0xFFB91C1C) : const Color(0xFF047857)).withOpacity(0.35),
+                    blurRadius: 18,
+                    offset: const Offset(0, 8),
                   ),
                 ],
               ),
               child: Stack(
                 children: [
                   Positioned(
-                    right: -20,
-                    bottom: -20,
+                    right: -25,
+                    bottom: -25,
                     child: Icon(
-                      currentDuty.isHoliday ? Icons.beach_access : Icons.event_available,
-                      size: 130,
-                      color: Colors.white.withOpacity(0.08),
+                      currentDuty.isHoliday ? Icons.beach_access_rounded : Icons.verified_user_rounded,
+                      size: 140,
+                      color: Colors.white.withOpacity(0.06),
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.all(18),
+                    padding: const EdgeInsets.all(20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -1070,19 +1114,22 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                           children: [
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(20)),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.16),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
                               child: const Row(
                                 children: [
-                                  CircleAvatar(radius: 3, backgroundColor: Colors.amberAccent),
+                                  CircleAvatar(radius: 3.5, backgroundColor: Color(0xFFFBBF24)),
                                   SizedBox(width: 6),
-                                  Text("TRỰC THỨ BẢY TUẦN NÀY", style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                                  Text("TRỰC THỨ BẢY TUẦN NÀY", style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
                                 ],
                               ),
                             ),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
-                                color: currentDuty.isHoliday ? Colors.white : Colors.amberAccent,
+                                color: currentDuty.isHoliday ? Colors.white : const Color(0xFFFDE68A),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
@@ -1090,16 +1137,16 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                                 style: TextStyle(
                                   fontWeight: FontWeight.w900,
                                   fontSize: 12,
-                                  color: currentDuty.isHoliday ? const Color(0xFFC62828) : Colors.black87,
+                                  color: currentDuty.isHoliday ? const Color(0xFFB91C1C) : const Color(0xFF78350F),
                                 ),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 16),
                         Text(
                           currentDuty.isHoliday ? "${currentDuty.assignedPerson} (MIỄN TRỰC)" : currentDuty.assignedPerson,
-                          style: const TextStyle(color: Colors.white, fontSize: 21, fontWeight: FontWeight.w900, letterSpacing: 0.2),
+                          style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 0.3),
                         ),
                         const SizedBox(height: 4),
                         if (currentDuty.isSwapped)
@@ -1107,7 +1154,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                             margin: const EdgeInsets.symmetric(vertical: 6),
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
-                              color: currentDuty.swapStatus == "PENDING" ? Colors.orange.shade100 : Colors.amberAccent.withOpacity(0.25),
+                              color: currentDuty.swapStatus == "PENDING" ? const Color(0xFFFEF3C7) : Colors.amberAccent.withOpacity(0.2),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
@@ -1115,7 +1162,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                                   ? "⏳ Đang chờ xác nhận đổi ca..."
                                   : "🔄 Đã đổi: trực thay cho ${currentDuty.originalPerson}",
                               style: TextStyle(
-                                color: currentDuty.swapStatus == "PENDING" ? Colors.orange.shade900 : Colors.amberAccent,
+                                color: currentDuty.swapStatus == "PENDING" ? const Color(0xFFB45309) : const Color(0xFFFDE68A),
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -1126,7 +1173,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                           style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 13),
                         ),
                         if (!currentDuty.isHoliday) ...[
-                          const SizedBox(height: 14),
+                          const SizedBox(height: 16),
                           Align(
                             alignment: Alignment.centerRight,
                             child: Row(
@@ -1136,25 +1183,26 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                                   Padding(
                                     padding: const EdgeInsets.only(right: 8.0),
                                     child: ElevatedButton.icon(
-                                      icon: const Icon(Icons.undo, size: 15),
+                                      icon: const Icon(Icons.undo_rounded, size: 15),
                                       label: const Text("Hủy đổi", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.red.shade100,
-                                        foregroundColor: Colors.red.shade900,
-                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                        backgroundColor: const Color(0xFFFEE2E2),
+                                        foregroundColor: const Color(0xFFB91C1C),
+                                        elevation: 0,
+                                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                                       ),
                                       onPressed: () => _confirmCancelSwap(currentDuty.date, currentDuty.assignedPerson),
                                     ),
                                   ),
                                 ElevatedButton.icon(
-                                  icon: const Icon(Icons.swap_horiz, size: 16),
+                                  icon: const Icon(Icons.swap_horiz_rounded, size: 16),
                                   label: const Text("Đổi ca", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.white,
-                                    foregroundColor: const Color(0xFF00695C),
+                                    foregroundColor: const Color(0xFF064E3B),
                                     elevation: 0,
-                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                                   ),
                                   onPressed: () => showTwoWaySwapDialog(context, currentDuty.date, currentDuty.assignedPerson),
@@ -1170,10 +1218,10 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
               ),
             ),
 
-            // BỘ LỌC THÀNH VIÊN
+            // ================= 2. BỘ LỌC THEO THÀNH VIÊN =================
             Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              height: 40,
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              height: 42,
               child: ListView(
                 scrollDirection: Axis.horizontal,
                 children: [
@@ -1187,9 +1235,9 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
               ),
             ),
 
-            // DANH SÁCH 2 NĂM GOM THEO THÁNG
+            // ================= 3. DANH SÁCH 2 NĂM GOM THEO THÁNG =================
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1198,11 +1246,15 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                     children: [
                       Text(
                         _filterMember == "ALL" ? "LỊCH TRỰC 2 NĂM TỚI (104 TUẦN)" : "LỊCH CỦA ${_filterMember.toUpperCase()}",
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: Colors.blueGrey, letterSpacing: 0.5),
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: Color(0xFF475569), letterSpacing: 0.6),
                       ),
-                      Text(
-                        "${displayedShifts.length} ngày",
-                        style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(color: const Color(0xFFE2E8F0), borderRadius: BorderRadius.circular(10)),
+                        child: Text(
+                          "${displayedShifts.length} ngày",
+                          style: const TextStyle(fontSize: 11, color: Color(0xFF475569), fontWeight: FontWeight.w800),
+                        ),
                       ),
                     ],
                   ),
@@ -1235,42 +1287,42 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                         children: [
                           if (showMonthHeader)
                             Padding(
-                              padding: const EdgeInsets.only(top: 14, bottom: 8),
+                              padding: const EdgeInsets.only(top: 16, bottom: 8),
                               child: Row(
                                 children: [
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: Colors.blueGrey.shade100,
-                                      borderRadius: BorderRadius.circular(10),
+                                      color: const Color(0xFFCBD5E1),
+                                      borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: Text(
                                       monthGroup.toUpperCase(),
-                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Colors.blueGrey.shade800),
+                                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Color(0xFF334155)),
                                     ),
                                   ),
                                   const SizedBox(width: 8),
-                                  Expanded(child: Divider(color: Colors.grey.shade300, thickness: 1)),
+                                  const Expanded(child: Divider(color: Color(0xFFCBD5E1), thickness: 1)),
                                 ],
                               ),
                             ),
                           Container(
-                            margin: const EdgeInsets.only(bottom: 8),
+                            margin: const EdgeInsets.only(bottom: 10),
                             decoration: BoxDecoration(
                               color: Colors.white,
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(16),
                               border: Border.all(
-                                color: swapStatus == "PENDING" ? Colors.orange.shade300 : Colors.grey.shade200,
+                                color: swapStatus == "PENDING" ? const Color(0xFFFDBA74) : const Color(0xFFE2E8F0),
                                 width: swapStatus == "PENDING" ? 1.5 : 1,
                               ),
                               boxShadow: [
-                                BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2)),
+                                BoxShadow(color: const Color(0xFF0F172A).withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 3)),
                               ],
                             ),
                             child: Material(
                               color: Colors.transparent,
                               child: InkWell(
-                                borderRadius: BorderRadius.circular(14),
+                                borderRadius: BorderRadius.circular(16),
                                 onTap: () {
                                   Navigator.push(
                                     context,
@@ -1285,28 +1337,28 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                                   ).then((_) => _initData());
                                 },
                                 child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(14),
+                                  borderRadius: BorderRadius.circular(16),
                                   child: IntrinsicHeight(
                                     child: Row(
                                       children: [
                                         Container(
                                           width: 5,
-                                          color: isHoliday ? Colors.red : (swapStatus == "PENDING" ? Colors.orange : m.themeColor),
+                                          color: isHoliday ? const Color(0xFFDC2626) : (swapStatus == "PENDING" ? const Color(0xFFF97316) : m.themeColor),
                                         ),
-                                        const SizedBox(width: 12),
+                                        const SizedBox(width: 14),
                                         CircleAvatar(
                                           backgroundColor: m.themeColor.withOpacity(0.12),
                                           foregroundColor: m.themeColor,
-                                          radius: 18,
+                                          radius: 20,
                                           child: Text(
                                             m.shortName[0],
-                                            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
+                                            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
                                           ),
                                         ),
                                         const SizedBox(width: 12),
                                         Expanded(
                                           child: Padding(
-                                            padding: const EdgeInsets.symmetric(vertical: 12),
+                                            padding: const EdgeInsets.symmetric(vertical: 14),
                                             child: Column(
                                               crossAxisAlignment: CrossAxisAlignment.start,
                                               children: [
@@ -1314,65 +1366,68 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                                                   children: [
                                                     Text(
                                                       m.name,
-                                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87),
+                                                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5, color: Color(0xFF1E293B)),
                                                     ),
                                                     if (isSwapped) ...[
                                                       const SizedBox(width: 6),
                                                       Container(
-                                                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                                         decoration: BoxDecoration(
-                                                          color: swapStatus == "PENDING" ? Colors.orange.shade100 : Colors.amber.shade100,
-                                                          borderRadius: BorderRadius.circular(4),
+                                                          color: swapStatus == "PENDING" ? const Color(0xFFFEF3C7) : const Color(0xFFF1F5F9),
+                                                          borderRadius: BorderRadius.circular(6),
+                                                          border: Border.all(
+                                                            color: swapStatus == "PENDING" ? const Color(0xFFFCD34D) : const Color(0xFFCBD5E1),
+                                                          ),
                                                         ),
                                                         child: Text(
-                                                          swapStatus == "PENDING" ? "CHỜ XÁC NHẬN" : "ĐÃ ĐỔI",
+                                                          swapStatus == "PENDING" ? "CHỜ DUYỆT" : "ĐÃ ĐỔI",
                                                           style: TextStyle(
-                                                            color: swapStatus == "PENDING" ? Colors.orange.shade900 : Colors.brown,
-                                                            fontSize: 9,
-                                                            fontWeight: FontWeight.bold,
+                                                            color: swapStatus == "PENDING" ? const Color(0xFFB45309) : const Color(0xFF475569),
+                                                            fontSize: 9.5,
+                                                            fontWeight: FontWeight.w800,
                                                           ),
                                                         ),
                                                       ),
                                                     ],
                                                   ],
                                                 ),
-                                                const SizedBox(height: 3),
+                                                const SizedBox(height: 4),
                                                 Row(
                                                   children: [
                                                     Container(
-                                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                                                      decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(4)),
+                                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                                      decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(6)),
                                                       child: Text(
                                                         timeline,
-                                                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.blueGrey.shade700),
+                                                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF475569)),
                                                       ),
                                                     ),
-                                                    const SizedBox(width: 6),
+                                                    const SizedBox(width: 8),
                                                     Text(
                                                       dateStr,
-                                                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade800),
+                                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
                                                     ),
                                                   ],
                                                 ),
                                                 if (isHoliday)
                                                   Padding(
-                                                    padding: const EdgeInsets.only(top: 3),
-                                                    child: Text("Miễn trực: $holidayName", style: const TextStyle(color: Colors.red, fontSize: 11, fontWeight: FontWeight.bold)),
+                                                    padding: const EdgeInsets.only(top: 4),
+                                                    child: Text("Miễn trực: $holidayName", style: const TextStyle(color: Color(0xFFDC2626), fontSize: 11, fontWeight: FontWeight.bold)),
                                                   )
                                                 else if (isSwapped && swapStatus == "PENDING")
                                                   Padding(
-                                                    padding: const EdgeInsets.only(top: 3),
+                                                    padding: const EdgeInsets.only(top: 4),
                                                     child: Text(
                                                       isRequester
                                                           ? "Đã gửi đề nghị đổi cho $originalName"
                                                           : "$originalName đề nghị đổi ca với bạn",
-                                                      style: TextStyle(color: Colors.orange.shade900, fontSize: 11, fontWeight: FontWeight.bold),
+                                                      style: const TextStyle(color: Color(0xFFC2410C), fontSize: 11, fontWeight: FontWeight.bold),
                                                     ),
                                                   )
                                                 else if (isSwapped)
                                                   Padding(
-                                                    padding: const EdgeInsets.only(top: 3),
-                                                    child: Text("Đổi thay cho $originalName", style: const TextStyle(color: Colors.brown, fontSize: 11, fontWeight: FontWeight.w600)),
+                                                    padding: const EdgeInsets.only(top: 4),
+                                                    child: Text("Đổi thay cho $originalName", style: const TextStyle(color: Color(0xFF475569), fontSize: 11, fontWeight: FontWeight.w600)),
                                                   ),
                                               ],
                                             ),
@@ -1381,36 +1436,37 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                                         // NÚT ĐỒNG Ý
                                         if (isSwapped && swapStatus == "PENDING" && !isRequester)
                                           Padding(
-                                            padding: const EdgeInsets.only(right: 6.0),
+                                            padding: const EdgeInsets.only(right: 8.0),
                                             child: ElevatedButton(
                                               style: ElevatedButton.styleFrom(
-                                                backgroundColor: Colors.orange.shade700,
+                                                backgroundColor: const Color(0xFFF97316),
                                                 foregroundColor: Colors.white,
-                                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                                 elevation: 0,
+                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                               ),
                                               onPressed: () => _confirmAcceptSwap(targetSat, originalName ?? "", m.name),
-                                              child: const Text("Đồng ý", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                              child: const Text("Đồng ý", style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
                                             ),
                                           ),
                                         // Nút Hủy đổi ca
                                         if (isSwapped)
                                           IconButton(
-                                            icon: const Icon(Icons.undo, size: 20, color: Colors.redAccent),
+                                            icon: const Icon(Icons.undo_rounded, size: 20, color: Color(0xFFEF4444)),
                                             tooltip: "Hủy ca này (nhập pass của ${m.shortName})",
                                             onPressed: () => _confirmCancelSwap(targetSat, m.name),
                                           ),
                                         // Nút Đổi ca
                                         if (!isHoliday && !isSwapped)
                                           IconButton(
-                                            icon: const Icon(Icons.swap_horiz, size: 20, color: Color(0xFF00695C)),
+                                            icon: const Icon(Icons.swap_horiz_rounded, size: 22, color: Color(0xFF0F766E)),
                                             tooltip: "Đổi ca này",
                                             onPressed: () => showTwoWaySwapDialog(context, targetSat, m.name),
                                           )
                                         else if (isHoliday)
                                           const Padding(
                                             padding: EdgeInsets.only(right: 14),
-                                            child: Icon(Icons.beach_access, size: 18, color: Colors.redAccent),
+                                            child: Icon(Icons.beach_access_rounded, size: 18, color: Color(0xFFDC2626)),
                                           ),
                                       ],
                                     ),
@@ -1434,23 +1490,32 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
 
   Widget _buildFilterChip(String label, String value, {Color? color}) {
     final bool isSelected = _filterMember == value;
-    final chipColor = color ?? const Color(0xFF00695C);
+    final chipColor = color ?? const Color(0xFF0F766E);
 
     return InkWell(
       borderRadius: BorderRadius.circular(20),
       onTap: () => setState(() => _filterMember = value),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected ? chipColor : Colors.white,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: isSelected ? chipColor : Colors.grey.shade300, width: isSelected ? 1.5 : 1),
-          boxShadow: isSelected ? [BoxShadow(color: chipColor.withOpacity(0.25), blurRadius: 6, offset: const Offset(0, 2))] : [],
+          border: Border.all(
+            color: isSelected ? chipColor : const Color(0xFFCBD5E1),
+            width: isSelected ? 1.5 : 1,
+          ),
+          boxShadow: isSelected
+              ? [BoxShadow(color: chipColor.withOpacity(0.28), blurRadius: 8, offset: const Offset(0, 3))]
+              : [],
         ),
         child: Text(
           label,
-          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isSelected ? Colors.white : Colors.black87),
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w800,
+            color: isSelected ? Colors.white : const Color(0xFF334155),
+          ),
         ),
       ),
     );
@@ -1537,29 +1602,29 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
     final todayStart = DateTime(now.year, now.month, now.day);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F8FA),
+      backgroundColor: const Color(0xFFF1F5F9),
       appBar: AppBar(
         title: Text(widget.member.name, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-        backgroundColor: const Color(0xFF00695C),
-        leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => Navigator.pop(context)),
+        backgroundColor: const Color(0xFF064E3B),
+        leading: IconButton(icon: const Icon(Icons.arrow_back_rounded, color: Colors.white), onPressed: () => Navigator.pop(context)),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(colors: [Color(0xFF00695C), Color(0xFF004D40)], begin: Alignment.topLeft, end: Alignment.bottomRight),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [BoxShadow(color: Colors.teal.withOpacity(0.35), blurRadius: 10, offset: const Offset(0, 4))],
+                gradient: const LinearGradient(colors: [Color(0xFF047857), Color(0xFF064E3B)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [BoxShadow(color: const Color(0xFF047857).withOpacity(0.35), blurRadius: 12, offset: const Offset(0, 4))],
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Row(
                     children: [
-                      Container(padding: const EdgeInsets.all(6), decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(8)), child: const Icon(Icons.calendar_month, color: Colors.amberAccent, size: 22)),
+                      Container(padding: const EdgeInsets.all(6), decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.calendar_month_rounded, color: Color(0xFFFDE68A), size: 22)),
                       const SizedBox(width: 10),
                       const Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1576,8 +1641,8 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<int>(
                         value: _selectedYear,
-                        icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF00695C), size: 28),
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF00695C)),
+                        icon: const Icon(Icons.arrow_drop_down_rounded, color: Color(0xFF064E3B), size: 28),
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF064E3B)),
                         dropdownColor: Colors.white,
                         items: _years.map((int year) => DropdownMenuItem<int>(value: year, child: Text("NĂM $year", style: TextStyle(fontWeight: year == _selectedYear ? FontWeight.w900 : FontWeight.bold)))).toList(),
                         onChanged: (int? newYear) {
@@ -1593,17 +1658,17 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.shade200)),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: const Color(0xFFE2E8F0))),
               child: Column(
                 children: [
-                  Text("Tổng kết năm $_selectedYear", style: const TextStyle(fontSize: 14, color: Colors.blueGrey, fontWeight: FontWeight.bold)),
+                  Text("Tổng kết năm $_selectedYear", style: const TextStyle(fontSize: 14, color: Color(0xFF64748B), fontWeight: FontWeight.bold)),
                   const SizedBox(height: 10),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _buildStatBox("Ca thực tế", "$actualCount ca", Colors.teal),
-                      Container(height: 28, width: 1, color: Colors.grey.shade300),
-                      _buildStatBox("Miễn trực (Lễ/Tết)", "$holidayCount ca", Colors.deepOrange),
+                      _buildStatBox("Ca thực tế", "$actualCount ca", const Color(0xFF0F766E)),
+                      Container(height: 28, width: 1, color: const Color(0xFFCBD5E1)),
+                      _buildStatBox("Miễn trực (Lễ/Tết)", "$holidayCount ca", const Color(0xFFDC2626)),
                     ],
                   ),
                 ],
@@ -1612,11 +1677,11 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
             const SizedBox(height: 20),
             Align(
               alignment: Alignment.centerLeft,
-              child: Text("CÁC THỨ BẢY TRỰC NĂM $_selectedYear (${memberShiftsInYear.length} LƯỢT)", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.blueGrey)),
+              child: Text("CÁC THỨ BẢY TRỰC NĂM $_selectedYear (${memberShiftsInYear.length} LƯỢT)", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF475569))),
             ),
             const SizedBox(height: 10),
             if (memberShiftsInYear.isEmpty)
-              const Padding(padding: EdgeInsets.all(20.0), child: Text("Không có ca trực nào trong năm này.", style: TextStyle(color: Colors.grey)))
+              const Padding(padding: EdgeInsets.all(20.0), child: Text("Không có ca trực nào trong năm này.", style: TextStyle(color: Color(0xFF94A3B8))))
             else
               ListView.separated(
                 shrinkWrap: true,
@@ -1631,12 +1696,12 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
                   if (shift.isHoliday) {
                     return Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.red.shade200)),
+                      decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFFECACA))),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(children: [const Icon(Icons.beach_access, color: Colors.red, size: 18), const SizedBox(width: 10), Text(dateStr, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red))]),
-                          Flexible(child: Text("MIỄN TRỰC (${shift.holidayName})", textAlign: TextAlign.right, style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 11))),
+                          Row(children: [const Icon(Icons.beach_access_rounded, color: Color(0xFFDC2626), size: 18), const SizedBox(width: 10), Text(dateStr, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFDC2626)))]),
+                          Flexible(child: Text("MIỄN TRỰC (${shift.holidayName})", textAlign: TextAlign.right, style: const TextStyle(color: Color(0xFFDC2626), fontWeight: FontWeight.bold, fontSize: 11))),
                         ],
                       ),
                     );
@@ -1644,23 +1709,23 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
 
                   return Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(color: isPast ? Colors.grey.shade100 : Colors.white, borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.grey.shade200)),
+                    decoration: BoxDecoration(color: isPast ? const Color(0xFFF8FAFC) : Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE2E8F0))),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Row(
                           children: [
-                            Icon(isPast ? Icons.check_circle_outline : Icons.event_available, color: isPast ? Colors.grey : Colors.teal, size: 18),
+                            Icon(isPast ? Icons.check_circle_outline_rounded : Icons.event_available_rounded, color: isPast ? const Color(0xFF94A3B8) : const Color(0xFF0F766E), size: 18),
                             const SizedBox(width: 10),
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(dateStr, style: TextStyle(fontWeight: FontWeight.w600, color: isPast ? Colors.grey.shade600 : Colors.black87)),
+                                Text(dateStr, style: TextStyle(fontWeight: FontWeight.w600, color: isPast ? const Color(0xFF94A3B8) : const Color(0xFF1E293B))),
                                 if (shift.isSwapped)
                                   Text(
                                     shift.swapStatus == "PENDING" ? "Chờ xác nhận đổi" : "Đã đổi thay cho ${shift.originalPerson}",
                                     style: TextStyle(
-                                      color: shift.swapStatus == "PENDING" ? Colors.orange.shade800 : Colors.brown,
+                                      color: shift.swapStatus == "PENDING" ? const Color(0xFFC2410C) : const Color(0xFF475569),
                                       fontSize: 10,
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -1671,16 +1736,16 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
                         ),
                         if (!isPast && !shift.isSwapped)
                           ElevatedButton.icon(
-                            icon: const Icon(Icons.swap_horiz, size: 14),
+                            icon: const Icon(Icons.swap_horiz_rounded, size: 14),
                             label: const Text("Đổi ca", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                            style: ElevatedButton.styleFrom(backgroundColor: Colors.teal.shade50, foregroundColor: const Color(0xFF00695C), elevation: 0, padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4)),
+                            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFCCFBF1), foregroundColor: const Color(0xFF0F766E), elevation: 0, padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
                             onPressed: () {
                               Navigator.pop(context);
                               widget.onSwapRequested(shift.date, widget.member.name);
                             },
                           )
                         else if (isPast)
-                          Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3), decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(4)), child: const Text("ĐÃ QUA", style: TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold)))
+                          Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3), decoration: BoxDecoration(color: const Color(0xFFE2E8F0), borderRadius: BorderRadius.circular(6)), child: const Text("ĐÃ QUA", style: TextStyle(color: Color(0xFF64748B), fontSize: 10, fontWeight: FontWeight.bold)))
                       ],
                     ),
                   );
@@ -1698,7 +1763,7 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
       children: [
         Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
         const SizedBox(height: 2),
-        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
       ],
     );
   }
