@@ -28,6 +28,7 @@ class DutyShift {
   final String? holidayName;
   final bool isSwapped;
   final String? originalPerson;
+  final String? swapStatus; // "PENDING" hoặc "CONFIRMED"
 
   DutyShift({
     required this.date,
@@ -36,6 +37,7 @@ class DutyShift {
     this.holidayName,
     this.isSwapped = false,
     this.originalPerson,
+    this.swapStatus,
   });
 }
 
@@ -177,7 +179,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
   static final DateTime baseSaturday = DateTime(2026, 10, 17);
   static const String sheetId = "12LwsnfhdvnT9WqZAiXy6lrA0GrEFpdA1IUXp5YfHf0c";
   static const String scriptApiUrl =
-      "https://script.google.com/macros/s/AKfycbwC4lFvh_9Wd_P5KA5yih3-4uqqB3Wm9Yeila5GSuImfryloKEO4FYfQsICVx937vTM/exec";
+      "[https://script.google.com/macros/s/AKfycbwC4lFvh_9Wd_P5KA5yih3-4uqqB3Wm9Yeila5GSuImfryloKEO4FYfQsICVx937vTM/exec](https://script.google.com/macros/s/AKfycbwC4lFvh_9Wd_P5KA5yih3-4uqqB3Wm9Yeila5GSuImfryloKEO4FYfQsICVx937vTM/exec)";
 
   static Map<String, String> userPasswords = {
     "admin": "1111",
@@ -223,9 +225,8 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     }
   }
 
-  // Đọc mật khẩu trực tiếp qua CSV siêu tốc (0.2s)
   Future<void> _fetchRemotePasswordsFast() async {
-    final String url = "https://docs.google.com/spreadsheets/d/$sheetId/gviz/tq?tqx=out:csv&sheet=User";
+    final String url = "[https://docs.google.com/spreadsheets/d/$sheetId/gviz/tq?tqx=out:csv&sheet=User](https://docs.google.com/spreadsheets/d/$sheetId/gviz/tq?tqx=out:csv&sheet=User)";
     try {
       final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 3));
       if (res.statusCode == 200) {
@@ -245,7 +246,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
   }
 
   Future<void> _fetchGoogleSheetHolidays() async {
-    final String url = "https://docs.google.com/spreadsheets/d/$sheetId/gviz/tq?tqx=out:csv";
+    final String url = "[https://docs.google.com/spreadsheets/d/$sheetId/gviz/tq?tqx=out:csv](https://docs.google.com/spreadsheets/d/$sheetId/gviz/tq?tqx=out:csv)";
     try {
       final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 4));
       if (res.statusCode == 200) {
@@ -305,12 +306,25 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
             String d2 = _normalizeDate(item["ngay2"]?.toString() ?? "");
             String p1 = _matchMemberName(item["nguoi1"]?.toString() ?? "");
             String p2 = _matchMemberName(item["nguoi2"]?.toString() ?? "");
+            String status = item["trangThai"]?.toString().trim().toUpperCase() ?? "CONFIRMED";
 
             if (d1.isNotEmpty && p2.isNotEmpty) {
-              parsedSwap[d1] = {"nguoiGoc": p1, "nguoiDoi": p2};
+              parsedSwap[d1] = {
+                "nguoiGoc": p1,
+                "nguoiDoi": p2,
+                "trangThai": status,
+                "ngayDoi": d2,
+                "laNguoiYeuCau": "true",
+              };
             }
             if (d2.isNotEmpty && p1.isNotEmpty) {
-              parsedSwap[d2] = {"nguoiGoc": p2, "nguoiDoi": p1};
+              parsedSwap[d2] = {
+                "nguoiGoc": p2,
+                "nguoiDoi": p1,
+                "trangThai": status,
+                "ngayDoi": d1,
+                "laNguoiYeuCau": "false",
+              };
             }
           }
 
@@ -352,7 +366,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
 
   Future<void> _fetchInternetTime() async {
     try {
-      final res = await http.get(Uri.parse('https://worldtimeapi.org/api/timezone/Asia/Ho_Chi_Minh')).timeout(const Duration(seconds: 2));
+      final res = await http.get(Uri.parse('[https://worldtimeapi.org/api/timezone/Asia/Ho_Chi_Minh')).timeout(const](https://worldtimeapi.org/api/timezone/Asia/Ho_Chi_Minh')).timeout(const) Duration(seconds: 2));
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         _currentDate = DateTime.parse(data['datetime']);
@@ -404,10 +418,15 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     String defaultPerson = baseMembers[personIndex].name;
     String assignedPerson = defaultPerson;
     bool isSwapped = false;
+    String? swapStatus;
 
     String dateKey = "${thisSaturday.year}-${thisSaturday.month.toString().padLeft(2, '0')}-${thisSaturday.day.toString().padLeft(2, '0')}";
     if (swapShifts.containsKey(dateKey)) {
-      assignedPerson = swapShifts[dateKey]!["nguoiDoi"]!;
+      swapStatus = swapShifts[dateKey]!["trangThai"];
+      // Chỉ khi CONFIRMED mới đổi tên chính thức
+      if (swapStatus == "CONFIRMED") {
+        assignedPerson = swapShifts[dateKey]!["nguoiDoi"]!;
+      }
       isSwapped = true;
     }
 
@@ -419,6 +438,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
       holidayName: holiday,
       isSwapped: isSwapped,
       originalPerson: defaultPerson,
+      swapStatus: swapStatus,
     );
   }
 
@@ -437,15 +457,26 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
       Member currentMember = baseMember;
       bool isSwapped = false;
       String? originalName;
+      String? swapStatus;
+      String? targetSwapPerson;
+      bool isRequester = false;
 
       if (swapShifts.containsKey(dateKey)) {
-        String swapToName = swapShifts[dateKey]!["nguoiDoi"]!;
-        currentMember = baseMembers.firstWhere(
-          (m) => m.name.toUpperCase() == swapToName.toUpperCase() || m.shortName.toUpperCase() == swapToName.toUpperCase(),
-          orElse: () => baseMember,
-        );
+        swapStatus = swapShifts[dateKey]!["trangThai"];
+        targetSwapPerson = swapShifts[dateKey]!["nguoiDoi"];
+        isRequester = swapShifts[dateKey]!["laNguoiYeuCau"] == "true";
+
+        if (swapStatus == "CONFIRMED") {
+          currentMember = baseMembers.firstWhere(
+            (m) => m.name.toUpperCase() == targetSwapPerson!.toUpperCase() || m.shortName.toUpperCase() == targetSwapPerson.toUpperCase(),
+            orElse: () => baseMember,
+          );
+          originalName = baseMember.name;
+        } else {
+          // PENDING: Vẫn là ca người cũ, nhưng gắn nhãn chờ
+          originalName = targetSwapPerson;
+        }
         isSwapped = true;
-        originalName = baseMember.name;
       }
 
       String timelineText = (i == 0) ? "Tuần này" : (i == 1 ? "Tuần tới" : "$i tuần nữa");
@@ -465,6 +496,9 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
         "holidayName": holiday,
         "isSwapped": isSwapped,
         "originalName": originalName,
+        "swapStatus": swapStatus,
+        "targetSwapPerson": targetSwapPerson,
+        "isRequester": isRequester,
       });
     }
     return shifts;
@@ -483,7 +517,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
       String person = baseMembers[personIdx].name;
 
       String dateKey = "${sat.year}-${sat.month.toString().padLeft(2, '0')}-${sat.day.toString().padLeft(2, '0')}";
-      if (swapShifts.containsKey(dateKey)) {
+      if (swapShifts.containsKey(dateKey) && swapShifts[dateKey]!["trangThai"] == "CONFIRMED") {
         person = swapShifts[dateKey]!["nguoiDoi"]!;
       }
 
@@ -496,7 +530,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     return list;
   }
 
-  // ================= XÁC THỰC MẬT KHẨU KHI BẤM ĐỔI CA =================
+  // ================= BƯỚC 1: KHỞI TẠO ĐỔI CA (CẦN PASS NGƯỜI TẠO) =================
   void showTwoWaySwapDialog(BuildContext context, DateTime sourceDate, String sourcePerson) {
     final dateStr = "${sourceDate.day.toString().padLeft(2, '0')}/${sourceDate.month.toString().padLeft(2, '0')}/${sourceDate.year}";
     final cleanSourcePerson = _matchMemberName(sourcePerson);
@@ -519,7 +553,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
               children: [
                 Icon(Icons.swap_horizontal_circle_outlined, color: Color(0xFF00695C), size: 26),
                 SizedBox(width: 8),
-                Text("HOÁN ĐỔI CA TRỰC", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Color(0xFF00695C))),
+                Text("ĐỀ NGHỊ ĐỔI CA TRỰC", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Color(0xFF00695C))),
               ],
             ),
             content: SingleChildScrollView(
@@ -533,7 +567,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text("Ca ban đầu: $cleanSourcePerson", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF004D40))),
+                        Text("Ca của bạn: $cleanSourcePerson", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF004D40))),
                         const SizedBox(height: 2),
                         Text("Thứ Bảy, $dateStr", style: const TextStyle(fontSize: 12, color: Colors.black87)),
                       ],
@@ -565,7 +599,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                     },
                   ),
                   const SizedBox(height: 14),
-                  Text("2. Chọn ca trực của ${targetMember.shortName}:", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.blueGrey)),
+                  Text("2. Chọn ca của ${targetMember.shortName} để đổi:", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.blueGrey)),
                   const SizedBox(height: 6),
                   if (targetDates.isEmpty)
                     const Text("Không tìm thấy ngày trực sắp tới", style: TextStyle(color: Colors.red, fontSize: 12))
@@ -599,7 +633,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                     ),
                   ),
                   const SizedBox(height: 14),
-                  Text("4. Nhập mật mã của $cleanSourcePerson (hoặc admin):", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.redAccent)),
+                  Text("4. Mật mã xác thực của $cleanSourcePerson:", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.redAccent)),
                   const SizedBox(height: 6),
                   TextField(
                     controller: passwordController,
@@ -618,8 +652,8 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
             actions: [
               TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("HỦY", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold))),
               ElevatedButton.icon(
-                icon: const Icon(Icons.check, size: 16),
-                label: const Text("XÁC NHẬN", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                icon: const Icon(Icons.send, size: 16),
+                label: const Text("GỬI ĐỀ NGHỊ ĐỔI", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                 style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00695C), foregroundColor: Colors.white),
                 onPressed: () async {
                   if (selectedTargetDate == null) return;
@@ -629,14 +663,13 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                   final correctUserPass = userPasswords[userKey ?? ""] ?? "1111";
                   final adminPass = userPasswords["admin"] ?? "1111";
 
-                  // Kiểm tra mật mã chính chủ hoặc admin
                   if (inputPass.isEmpty || (inputPass != correctUserPass && inputPass != adminPass)) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Mật mã xác nhận không chính xác!"), backgroundColor: Colors.red));
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Mật mã không đúng!"), backgroundColor: Colors.red));
                     return;
                   }
 
                   Navigator.pop(ctx);
-                  await sendTwoWaySwapRequest(sourceDate, cleanSourcePerson, selectedTargetDate!, targetMember.name, reasonController.text);
+                  await sendSwapRequest(sourceDate, cleanSourcePerson, selectedTargetDate!, targetMember.name, reasonController.text);
                 },
               ),
             ],
@@ -646,23 +679,21 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
     );
   }
 
-  Future<void> sendTwoWaySwapRequest(DateTime d1, String p1, DateTime d2, String p2, String note) async {
+  Future<void> sendSwapRequest(DateTime d1, String p1, DateTime d2, String p2, String note) async {
     setState(() => _isLoading = true);
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Đang gửi yêu cầu lên Google Sheets..."), duration: Duration(seconds: 2)));
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Đang gửi đề nghị đổi ca..."), duration: Duration(seconds: 2)));
 
     final sD1 = "${d1.year}-${d1.month.toString().padLeft(2, '0')}-${d1.day.toString().padLeft(2, '0')}";
     final sD2 = "${d2.year}-${d2.month.toString().padLeft(2, '0')}-${d2.day.toString().padLeft(2, '0')}";
 
-    final queryParams = {
-      "action": "swap",
+    final uri = Uri.parse(scriptApiUrl).replace(queryParameters: {
+      "action": "swap_request",
       "ngay1": sD1,
       "nguoi1": p1,
       "ngay2": sD2,
       "nguoi2": p2,
       "ghiChu": note.isEmpty ? "Đổi ca qua App" : note,
-    };
-
-    final uri = Uri.parse(scriptApiUrl).replace(queryParameters: queryParams);
+    });
 
     try {
       final client = http.Client();
@@ -671,26 +702,100 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
       final response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 200) {
-        setState(() {
-          swapShifts[sD1] = {"nguoiGoc": p1, "nguoiDoi": p2};
-          swapShifts[sD2] = {"nguoiGoc": p2, "nguoiDoi": p1};
-        });
-
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Hoán đổi ca thành công trên Google Sheets!"), backgroundColor: Colors.teal));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Đã gửi đề nghị đổi ca! Chờ $p2 xác nhận."), backgroundColor: Colors.teal));
         await Future.delayed(const Duration(seconds: 1));
         await _fetchSwappedShifts();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Google Sheets phản hồi: Mã ${response.statusCode}"), backgroundColor: Colors.red));
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Lỗi gửi dữ liệu: $e"), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Lỗi: $e"), backgroundColor: Colors.red));
     }
 
     if (mounted) setState(() => _isLoading = false);
   }
 
-  // ================= XÁC THỰC MẬT KHẨU KHI BẤM HỦY CA =================
-  void _confirmCancelSwap(DateTime date, String person1, String person2) {
+  // ================= BƯỚC 2: XÁC NHẬN ĐỒNG Ý ĐỔI CA (CẦN PASS ĐỐI PHƯƠNG) =================
+  void _confirmAcceptSwap(DateTime date, String requester, String targetPerson) {
+    final passwordController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text("XÁC NHẬN ĐỒNG Ý ĐỔI CA", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF00695C))),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("$requester đã gửi đề nghị hoán đổi ca trực với bạn ($targetPerson)."),
+            const SizedBox(height: 12),
+            Text("Nhập mật mã của $targetPerson để đồng ý hoán đổi:", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+            const SizedBox(height: 6),
+            TextField(
+              controller: passwordController,
+              obscureText: true,
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.lock_outline, size: 18),
+                hintText: "••••",
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("ĐÓNG", style: TextStyle(color: Colors.grey))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00695C), foregroundColor: Colors.white),
+            onPressed: () async {
+              final inputPass = passwordController.text.trim();
+              final targetKey = _getUsernameOfPerson(targetPerson);
+              final correctPass = userPasswords[targetKey ?? ""] ?? "1111";
+              final adminPass = userPasswords["admin"] ?? "1111";
+
+              if (inputPass.isEmpty || (inputPass != correctPass && inputPass != adminPass)) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Mật mã của $targetPerson không đúng!"), backgroundColor: Colors.red));
+                return;
+              }
+
+              Navigator.pop(ctx);
+              await sendConfirmSwap(date);
+            },
+            child: const Text("ĐỒNG Ý ĐỔI", style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> sendConfirmSwap(DateTime d1) async {
+    setState(() => _isLoading = true);
+    final sD1 = "${d1.year}-${d1.month.toString().padLeft(2, '0')}-${d1.day.toString().padLeft(2, '0')}";
+
+    final uri = Uri.parse(scriptApiUrl).replace(queryParameters: {
+      "action": "swap_confirm",
+      "ngay1": sD1,
+    });
+
+    try {
+      final client = http.Client();
+      final request = http.Request('GET', uri)..followRedirects = true..maxRedirects = 5;
+      final streamedResponse = await client.send(request).timeout(const Duration(seconds: 12));
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Xác nhận hoán đổi ca thành công!"), backgroundColor: Colors.teal));
+        await _fetchSwappedShifts();
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Lỗi: $e"), backgroundColor: Colors.red));
+    }
+
+    if (mounted) setState(() => _isLoading = false);
+  }
+
+  // ================= HỦY CA: BẮT BUỘC NHẬP PASS CỦA NGƯỜI ĐỨNG TÊN CA ĐÓ =================
+  void _confirmCancelSwap(DateTime date, String shiftOwner) {
     final passwordController = TextEditingController();
 
     showDialog(
@@ -703,9 +808,9 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("Bạn có muốn hủy lượt hoán đổi ca giữa $person1 và $person2 để khôi phục về lịch gốc không?"),
+            Text("Bạn đang hủy lượt đổi của ca ngày này (thuộc $shiftOwner)."),
             const SizedBox(height: 14),
-            const Text("Nhập mật mã của 1 trong 2 người (hoặc admin):", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+            Text("Bắt buộc nhập đúng mật mã của $shiftOwner (hoặc admin):", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
             const SizedBox(height: 6),
             TextField(
               controller: passwordController,
@@ -725,14 +830,13 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
             onPressed: () {
               final inputPass = passwordController.text.trim();
-              final u1 = _getUsernameOfPerson(person1);
-              final u2 = _getUsernameOfPerson(person2);
-              final pass1 = userPasswords[u1 ?? ""] ?? "1111";
-              final pass2 = userPasswords[u2 ?? ""] ?? "1111";
+              final ownerKey = _getUsernameOfPerson(shiftOwner);
+              final ownerPass = userPasswords[ownerKey ?? ""] ?? "1111";
               final adminPass = userPasswords["admin"] ?? "1111";
 
-              if (inputPass.isEmpty || (inputPass != pass1 && inputPass != pass2 && inputPass != adminPass)) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Mật mã không đúng để hủy ca!"), backgroundColor: Colors.red));
+              // BẮT BUỘC ĐÚNG MẬT KHẨU CỦA NGƯỜI TẠI DÒNG ĐÓ
+              if (inputPass.isEmpty || (inputPass != ownerPass && inputPass != adminPass)) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Sai mật mã! Phải nhập đúng mật mã của $shiftOwner"), backgroundColor: Colors.red));
                 return;
               }
 
@@ -764,11 +868,9 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Đã hủy đổi ca và khôi phục ca gốc!"), backgroundColor: Colors.teal));
         await _fetchSwappedShifts();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Lỗi từ server: ${response.statusCode}"), backgroundColor: Colors.red));
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Lỗi hủy ca: $e"), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Lỗi: $e"), backgroundColor: Colors.red));
     }
 
     if (mounted) setState(() => _isLoading = false);
@@ -889,10 +991,19 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                           Container(
                             margin: const EdgeInsets.symmetric(vertical: 6),
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(color: Colors.amberAccent.withOpacity(0.25), borderRadius: BorderRadius.circular(8)),
+                            decoration: BoxDecoration(
+                              color: currentDuty.swapStatus == "PENDING" ? Colors.orange.shade100 : Colors.amberAccent.withOpacity(0.25),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                             child: Text(
-                              "🔄 Đã đổi: trực thay cho ${currentDuty.originalPerson}",
-                              style: const TextStyle(color: Colors.amberAccent, fontSize: 12, fontWeight: FontWeight.bold),
+                              currentDuty.swapStatus == "PENDING"
+                                  ? "⏳ Đang chờ xác nhận đổi ca..."
+                                  : "🔄 Đã đổi: trực thay cho ${currentDuty.originalPerson}",
+                              style: TextStyle(
+                                color: currentDuty.swapStatus == "PENDING" ? Colors.brown.shade800 : Colors.amberAccent,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         Text(
@@ -918,7 +1029,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                                       ),
-                                      onPressed: () => _confirmCancelSwap(currentDuty.date, currentDuty.assignedPerson, currentDuty.originalPerson ?? ""),
+                                      onPressed: () => _confirmCancelSwap(currentDuty.date, currentDuty.assignedPerson),
                                     ),
                                   ),
                                 ElevatedButton.icon(
@@ -996,6 +1107,8 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                       final bool isSwapped = item["isSwapped"];
                       final String? originalName = item["originalName"];
                       final String monthGroup = item["monthGroup"];
+                      final String? swapStatus = item["swapStatus"];
+                      final bool isRequester = item["isRequester"] ?? false;
 
                       bool showMonthHeader = false;
                       if (idx == 0 || displayedShifts[idx - 1]["monthGroup"] != monthGroup) {
@@ -1031,7 +1144,10 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: Colors.grey.shade200),
+                              border: Border.all(
+                                color: swapStatus == "PENDING" ? Colors.orange.shade300 : Colors.grey.shade200,
+                                width: swapStatus == "PENDING" ? 1.5 : 1,
+                              ),
                               boxShadow: [
                                 BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2)),
                               ],
@@ -1060,7 +1176,7 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                                       children: [
                                         Container(
                                           width: 5,
-                                          color: isHoliday ? Colors.red : m.themeColor,
+                                          color: isHoliday ? Colors.red : (swapStatus == "PENDING" ? Colors.orange : m.themeColor),
                                         ),
                                         const SizedBox(width: 12),
                                         CircleAvatar(
@@ -1089,8 +1205,18 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                                                       const SizedBox(width: 6),
                                                       Container(
                                                         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                                                        decoration: BoxDecoration(color: Colors.amber.shade100, borderRadius: BorderRadius.circular(4)),
-                                                        child: const Text("ĐÃ ĐỔI", style: TextStyle(color: Colors.brown, fontSize: 9, fontWeight: FontWeight.bold)),
+                                                        decoration: BoxDecoration(
+                                                          color: swapStatus == "PENDING" ? Colors.orange.shade100 : Colors.amber.shade100,
+                                                          borderRadius: BorderRadius.circular(4),
+                                                        ),
+                                                        child: Text(
+                                                          swapStatus == "PENDING" ? "CHỜ XÁC NHẬN" : "ĐÃ ĐỔI",
+                                                          style: TextStyle(
+                                                            color: swapStatus == "PENDING" ? Colors.orange.shade900 : Colors.brown,
+                                                            fontSize: 9,
+                                                            fontWeight: FontWeight.bold,
+                                                          ),
+                                                        ),
                                                       ),
                                                     ],
                                                   ],
@@ -1116,36 +1242,55 @@ class _MainDutyScreenState extends State<MainDutyScreen> {
                                                 if (isHoliday)
                                                   Padding(
                                                     padding: const EdgeInsets.only(top: 3),
+                                                    child: Text("Miễn trực: $holidayName", style: const TextStyle(color: Colors.red, fontSize: 11, fontWeight: FontWeight.bold)),
+                                                  )
+                                                else if (isSwapped && swapStatus == "PENDING")
+                                                  Padding(
+                                                    padding: const EdgeInsets.only(top: 3),
                                                     child: Text(
-                                                      "Miễn trực: $holidayName",
-                                                      style: const TextStyle(color: Colors.red, fontSize: 11, fontWeight: FontWeight.bold),
+                                                      isRequester ? "Đã gửi đề nghị đổi cho $originalName" : "$originalName đề nghị đổi ca với bạn",
+                                                      style: TextStyle(color: Colors.orange.shade900, fontSize: 11, fontWeight: FontWeight.bold),
                                                     ),
                                                   )
                                                 else if (isSwapped)
                                                   Padding(
                                                     padding: const EdgeInsets.only(top: 3),
-                                                    child: Text(
-                                                      "Đổi thay cho $originalName",
-                                                      style: const TextStyle(color: Colors.brown, fontSize: 11, fontWeight: FontWeight.w600),
-                                                    ),
+                                                    child: Text("Đổi thay cho $originalName", style: const TextStyle(color: Colors.brown, fontSize: 11, fontWeight: FontWeight.w600)),
                                                   ),
                                               ],
                                             ),
                                           ),
                                         ),
+                                        // Nút Xác nhận đồng ý (nếu đang ở trạng thái PENDING và là người được đề nghị)
+                                        if (isSwapped && swapStatus == "PENDING" && !isRequester)
+                                          Padding(
+                                            padding: const EdgeInsets.only(right: 6.0),
+                                            child: ElevatedButton(
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: Colors.orange.shade600,
+                                                foregroundColor: Colors.white,
+                                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                                elevation: 0,
+                                              ),
+                                              onPressed: () => _confirmAcceptSwap(targetSat, originalName ?? "", m.name),
+                                              child: const Text("Đồng ý", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                            ),
+                                          ),
+                                        // Nút Hủy đổi ca
                                         if (isSwapped)
                                           IconButton(
                                             icon: const Icon(Icons.undo, size: 20, color: Colors.redAccent),
-                                            tooltip: "Hủy lượt đổi này",
-                                            onPressed: () => _confirmCancelSwap(targetSat, m.name, originalName ?? ""),
+                                            tooltip: "Hủy lượt đổi này (nhập pass của ${m.shortName})",
+                                            onPressed: () => _confirmCancelSwap(targetSat, m.name),
                                           ),
-                                        if (!isHoliday)
+                                        // Nút Đổi ca
+                                        if (!isHoliday && !isSwapped)
                                           IconButton(
                                             icon: const Icon(Icons.swap_horiz, size: 20, color: Color(0xFF00695C)),
                                             tooltip: "Đổi ca này",
                                             onPressed: () => showTwoWaySwapDialog(context, targetSat, m.name),
                                           )
-                                        else
+                                        else if (isHoliday)
                                           const Padding(
                                             padding: EdgeInsets.only(right: 14),
                                             child: Icon(Icons.beach_access, size: 18, color: Colors.redAccent),
@@ -1238,10 +1383,14 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
       String defaultPerson = widget.members[personIndex].name;
       String assignedName = defaultPerson;
       bool isSwapped = false;
+      String? swapStatus;
 
       String dateKey = "${saturday.year}-${saturday.month.toString().padLeft(2, '0')}-${saturday.day.toString().padLeft(2, '0')}";
       if (_MainDutyScreenState.swapShifts.containsKey(dateKey)) {
-        assignedName = _MainDutyScreenState.swapShifts[dateKey]!["nguoiDoi"]!;
+        swapStatus = _MainDutyScreenState.swapShifts[dateKey]!["trangThai"];
+        if (swapStatus == "CONFIRMED") {
+          assignedName = _MainDutyScreenState.swapShifts[dateKey]!["nguoiDoi"]!;
+        }
         isSwapped = true;
       }
 
@@ -1254,6 +1403,7 @@ class _YearRangeMemberDetailScreenState extends State<YearRangeMemberDetailScree
           holidayName: holiday,
           isSwapped: isSwapped,
           originalPerson: defaultPerson,
+          swapStatus: swapStatus,
         ));
       }
       saturday = saturday.add(const Duration(days: 7));
